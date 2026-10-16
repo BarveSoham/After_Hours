@@ -11,38 +11,40 @@ class MainScene extends Phaser.Scene {
     this.otherPlayers = this.add.group();
 
     this.role = 'waiting';
-    this.hasKeycard = false;
+    this.isAlive = true;
     this.hasEscaped = false;
+    this.taskCompleted = false;
     this.isMatchActive = false;
 
-    // 1. Room obstacles
+    // Room Obstacles
     this.obstacles = this.physics.add.staticGroup();
     this.createSolidRoom();
 
-    // 2. Exit Door
+    // Exit Gate
     this.exitDoor = this.add.rectangle(740, 80, 60, 60, 0x444444);
-    this.exitDoorText = this.add.text(740, 80, 'LOCKED', {
+    this.exitDoorText = this.add.text(740, 80, 'EXIT\n[LOCKED]', {
       fontSize: '11px',
       fontFamily: 'monospace',
+      align: 'center',
       color: '#ff4444'
     }).setOrigin(0.5);
 
-    // 3. Keycard (hidden until match starts)
-    this.keycardSprite = this.add.rectangle(550, 480, 24, 16, 0xf1c40f).setVisible(false);
-    this.interactionPrompt = this.add.text(550, 445, 'Press E', {
+    // Individual Task Item (Personal Keycard)
+    this.keycardSprite = this.add.rectangle(0, 0, 24, 16, 0xf1c40f).setVisible(false);
+    this.interactionPrompt = this.add.text(0, 0, 'Press E', {
       fontSize: '12px',
       fontFamily: 'monospace',
       backgroundColor: '#000000cc',
       padding: { x: 4, y: 2 }
     }).setOrigin(0.5).setVisible(false).setDepth(25);
 
-    // 4. Local Player
+    // Local Player
     this.player = this.add.rectangle(400, 300, 36, 36, 0x888888);
     this.physics.add.existing(this.player);
     this.player.body.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.obstacles);
 
-    // 5. Keyboard & Mouse Inputs
+    // Inputs
     this.wasd = this.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
       down: Phaser.Input.Keyboard.KeyCodes.S,
@@ -66,15 +68,15 @@ class MainScene extends Phaser.Scene {
     this.maxAnxiety = 100;
     this.isExhausted = false;
 
-    // 6. Darkness & Flashlight
+    // Darkness & Flashlight
     this.darkness = this.add.renderTexture(0, 0, 800, 600).setDepth(10);
     this.createFlashlightGraphic();
 
-    // 7. HUD & Game Over Overlay
+    // UI
     this.createHUD();
-    this.createGameOverUI(); // <-- Placed right after HUD
+    this.createGameOverUI();
 
-    // 8. Socket Events
+    // Network Listeners
     this.setupSocketEvents();
   }
 
@@ -122,55 +124,50 @@ class MainScene extends Phaser.Scene {
     }).setDepth(21);
   }
 
-  // --- REPLAY UI CONTAINER ---
   createGameOverUI() {
-    this.endContainer = this.add.container(400, 300).setDepth(50).setVisible(false);
+  this.endContainer = this.add.container(400, 300).setDepth(50).setVisible(false);
 
-    // Dim background
-    const overlay = this.add.rectangle(0, 0, 800, 600, 0x000000, 0.85);
+  const overlay = this.add.rectangle(0, 0, 800, 600, 0x000000, 0.85);
 
-    // Banner message
-    this.endBannerText = this.add.text(0, -60, '', {
-      fontSize: '28px',
-      fontFamily: 'monospace',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+  // Multi-line text centered horizontally
+  this.endBannerText = this.add.text(0, -60, '', {
+    fontSize: '26px',
+    fontFamily: 'monospace',
+    fontStyle: 'bold',
+    align: 'center',       // Centers multiple lines relative to each other
+    lineSpacing: 8         // Adds comfortable breathing room between the lines
+  }).setOrigin(0.5);      // Centers the entire text block at (0, -60)
 
-    // Clickable button
-    const btnBg = this.add.rectangle(0, 30, 200, 44, 0x27ae60)
-      .setInteractive({ useHandCursor: true });
+  // Replay Button
+  const btnBg = this.add.rectangle(0, 45, 200, 44, 0x27ae60)
+    .setInteractive({ useHandCursor: true });
 
-    const btnText = this.add.text(0, 30, 'PLAY AGAIN', {
-      fontSize: '16px',
-      fontFamily: 'monospace',
-      fontStyle: 'bold',
-      color: '#ffffff'
-    }).setOrigin(0.5);
+  const btnText = this.add.text(0, 45, 'PLAY AGAIN', {
+    fontSize: '16px',
+    fontFamily: 'monospace',
+    fontStyle: 'bold',
+    color: '#ffffff'
+  }).setOrigin(0.5);
 
-    // Button hover effects
-    btnBg.on('pointerover', () => btnBg.setFillStyle(0x2ecc71));
-    btnBg.on('pointerout', () => btnBg.setFillStyle(0x27ae60));
+  btnBg.on('pointerover', () => btnBg.setFillStyle(0x2ecc71));
+  btnBg.on('pointerout', () => btnBg.setFillStyle(0x27ae60));
+  btnBg.on('pointerdown', () => this.socket.emit('requestRestart'));
 
-    // Button click: sends restart request to server
-    btnBg.on('pointerdown', () => {
-      this.socket.emit('requestRestart');
-    });
-
-    this.endContainer.add([overlay, this.endBannerText, btnBg, btnText]);
-  }
+  this.endContainer.add([overlay, this.endBannerText, btnBg, btnText]);
+}
 
   drawHUD() {
     this.hud.clear();
-    if (this.role !== 'survivor' || !this.isMatchActive) return;
+    if (this.role !== 'survivor' || !this.isMatchActive || !this.isAlive || this.hasEscaped) return;
 
-    // Stamina bar
+    // Stamina
     this.hud.fillStyle(0x222226, 0.8);
     this.hud.fillRect(20, 60, 140, 10);
     const stamColor = this.isExhausted ? 0xe74c3c : 0x2ecc71;
     this.hud.fillStyle(stamColor, 1.0);
     this.hud.fillRect(20, 60, (this.stamina / this.maxStamina) * 140, 10);
 
-    // Anxiety bar
+    // Anxiety
     this.hud.fillStyle(0x222226, 0.8);
     this.hud.fillRect(20, 78, 140, 10);
     const anxColor = this.anxiety > 75 ? 0xe74c3c : 0x9b59b6;
@@ -179,7 +176,6 @@ class MainScene extends Phaser.Scene {
   }
 
   setupSocketEvents() {
-    // Lobby count updates
     this.socket.on('lobbyUpdate', (lobby) => {
       if (lobby.gameState === 'waiting') {
         this.isMatchActive = false;
@@ -189,45 +185,48 @@ class MainScene extends Phaser.Scene {
       }
     });
 
-    // Match Start / Reset
     this.socket.on('matchStarted', (data) => {
-      // 1. Hide the replay screen
       this.endContainer.setVisible(false);
-
-      // 2. Reset Survivor states
-      this.hasKeycard = false;
+      this.isAlive = true;
       this.hasEscaped = false;
+      this.taskCompleted = false;
       this.stamina = 100;
       this.anxiety = 0;
       this.isExhausted = false;
-
-      // 3. Reset Exit Door visual
-      this.exitDoor.setFillStyle(0x444444);
-      this.exitDoorText.setText('LOCKED').setColor('#ff4444');
-
-      // 4. Start match
       this.isMatchActive = true;
-      this.keycardSprite.setVisible(true);
 
-      // Clear old player sprites
+      this.exitDoor.setFillStyle(0x444444);
+      this.exitDoorText.setText('EXIT\n[LOCKED]').setColor('#ff4444');
+
+      // 1. Destroy and clear ALL existing other player sprites completely
       this.otherPlayers.clear(true, true);
 
+      // 2. Setup Local Player
       const myData = data.players[this.socket.id];
       this.role = myData.role;
       this.player.setPosition(myData.x, myData.y);
+      this.player.setVisible(true);
 
       if (this.role === 'hunter') {
-        this.player.setFillStyle(0xe74c3c);
+        this.player.setFillStyle(0xe74c3c); // Red
         this.roleText.setText('ROLE: THE HUNTER (Left-Click to Attack)').setColor('#e74c3c');
-        this.objectiveText.setText('OBJECTIVE: Hunt down all survivors before they escape!').setColor('#ff4444');
+        this.objectiveText.setText('OBJECTIVE: Eliminate all survivors before they escape!').setColor('#ff4444');
         this.walkSpeed = 230;
+        this.keycardSprite.setVisible(false);
       } else {
-        this.player.setFillStyle(0x2ecc71);
+        this.player.setFillStyle(0x2ecc71); // Green
         this.roleText.setText('ROLE: SURVIVOR').setColor('#2ecc71');
-        this.objectiveText.setText('OBJECTIVE: Find the Clearance Keycard (E)').setColor('#f1c40f');
+        this.objectiveText.setText('OBJECTIVE: Find your Clearance Keycard (E)').setColor('#f1c40f');
         this.walkSpeed = 180;
+
+        const myTask = data.survivorTasks[this.socket.id];
+        if (myTask) {
+          this.keycardSprite.setPosition(myTask.x, myTask.y).setVisible(true);
+          this.interactionPrompt.setPosition(myTask.x, myTask.y - 30);
+        }
       }
 
+      // 3. Populate ALL remote players correctly
       Object.keys(data.players).forEach((id) => {
         if (id !== this.socket.id) {
           this.addOtherPlayer(data.players[id]);
@@ -250,23 +249,57 @@ class MainScene extends Phaser.Scene {
       });
     });
 
-    this.socket.on('itemCollected', (info) => {
+    // When YOU complete your personal task
+    this.socket.on('personalTaskDone', () => {
+      this.taskCompleted = true;
       this.keycardSprite.setVisible(false);
       this.interactionPrompt.setVisible(false);
-      this.exitDoor.setFillStyle(0x27ae60);
-      this.exitDoorText.setText('OPEN').setColor('#ffffff');
 
-      if (info.collectorId === this.socket.id) {
-        this.hasKeycard = true;
-        this.objectiveText.setText('OBJECTIVE: Keycard acquired! Reach the EXIT!').setColor('#2ecc71');
-      } else if (this.role === 'survivor') {
-        this.objectiveText.setText('OBJECTIVE: Teammate opened the door! Reach the EXIT!').setColor('#3498db');
-      } else {
-        this.objectiveText.setText('WARNING: Survivors unlocked the EXIT! Intercept them!').setColor('#ff4444');
-      }
+      // Open the door on your screen only
+      this.exitDoor.setFillStyle(0x27ae60);
+      this.exitDoorText.setText('EXIT\n[OPEN]').setColor('#ffffff');
+      this.objectiveText.setText('OBJECTIVE: Keycard acquired! Escape through the EXIT!').setColor('#00ff88');
     });
 
-    // Game Over Handler
+    // When YOU escape
+    this.socket.on('youEscaped', () => {
+      this.hasEscaped = true;
+      this.player.setVisible(false);
+      this.objectiveText.setText('YOU ESCAPED! Spectating remaining players...').setColor('#2ecc71');
+    });
+
+    // When another survivor escapes
+    this.socket.on('survivorEscapedNotification', ({ id }) => {
+      this.otherPlayers.getChildren().forEach((other) => {
+        if (other.playerId === id) {
+          other.destroy(); // Remove them from view as they've escaped
+        }
+      });
+    });
+
+    // When a survivor is eliminated (Individual death)
+    this.socket.on('survivorEliminated', ({ victimId }) => {
+      if (this.socket.id === victimId) {
+        this.isAlive = false;
+        this.player.setFillStyle(0x444444);
+        this.objectiveText.setText('YOU WERE ELIMINATED! Spectating...').setColor('#ff4444');
+      } else {
+        this.otherPlayers.getChildren().forEach((other) => {
+          if (other.playerId === victimId) {
+            other.setFillStyle(0x444444); // Show them as dead
+          }
+        });
+      }
+    // Broadcast starting position immediately
+      this.socket.emit('playerMovement', {
+        x: this.player.x,
+        y: this.player.y,
+        angle: 0
+      });
+      
+    });
+
+    // When all survivors have either escaped or died
     this.socket.on('gameOver', (data) => {
       this.isMatchActive = false;
       this.player.body.setVelocity(0);
@@ -278,16 +311,18 @@ class MainScene extends Phaser.Scene {
   }
 
   addOtherPlayer(playerInfo) {
-    const color = playerInfo.role === 'hunter' ? 0xe74c3c : 0x3498db;
-    const other = this.add.rectangle(playerInfo.x, playerInfo.y, 36, 36, color).setDepth(5);
+    // If it is the Hunter, show Red. If it's a Survivor, show Blue
+    const color = (playerInfo.role === 'hunter') ? 0xe74c3c : 0x3498db;
+    const other = this.add.rectangle(playerInfo.x, playerInfo.y, 36, 36, color);
+    other.setDepth(5);
     other.playerId = playerInfo.id;
+    other.playerRole = playerInfo.role;
     this.otherPlayers.add(other);
   }
 
   update(time, delta) {
     const dt = delta / 1000;
 
-    // Freeze inputs while in lobby waiting for 3 players
     if (!this.isMatchActive) {
       this.player.body.setVelocity(0);
       this.darkness.clear();
@@ -295,7 +330,16 @@ class MainScene extends Phaser.Scene {
       return;
     }
 
-    // Movement
+    // Freeze dead or escaped players
+    if (!this.isAlive || this.hasEscaped) {
+      this.player.body.setVelocity(0);
+      // Spectator view: lift total pitch black darkness slightly
+      this.darkness.clear();
+      this.darkness.fill(0x050508, 0.4);
+      return;
+    }
+
+    // Movement & Sprint
     const isMoving = this.wasd.left.isDown || this.wasd.right.isDown || this.wasd.up.isDown || this.wasd.down.isDown;
     let currentSpeed = this.walkSpeed;
 
@@ -323,7 +367,7 @@ class MainScene extends Phaser.Scene {
     const pointer = this.input.activePointer;
     let angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, pointer.x, pointer.y);
 
-    // Keycard pickup
+    // Individual Task Pickup
     if (this.keycardSprite.visible && this.role === 'survivor') {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.keycardSprite.x, this.keycardSprite.y);
       if (dist < 55) {
@@ -336,11 +380,10 @@ class MainScene extends Phaser.Scene {
       }
     }
 
-    // Survivor Escape Check
-    if (this.hasKeycard && !this.hasEscaped) {
+    // Individual Escape Check
+    if (this.taskCompleted && !this.hasEscaped && this.role === 'survivor') {
       const distToDoor = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.exitDoor.x, this.exitDoor.y);
       if (distToDoor < 45) {
-        this.hasEscaped = true;
         this.socket.emit('playerEscaped');
       }
     }

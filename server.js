@@ -13,69 +13,101 @@ const REQUIRED_PLAYERS = 3;
 let gameState = 'waiting'; // 'waiting', 'in_progress', 'ended'
 let players = {};
 
-let keycard = {
-  x: 550,
-  y: 480,
-  collected: false,
-  carriedBy: null
-};
+// Individual items for survivors: map of playerId -> item coordinates & status
+let survivorTasks = {};
 
-let exitGate = {
+const exitGate = {
   x: 740,
   y: 80,
-  unlocked: false
+  w: 60,
+  h: 60
 };
 
 function startMatch() {
   gameState = 'in_progress';
-  keycard = { x: 550, y: 480, collected: false, carriedBy: null };
-  exitGate.unlocked = false;
+  survivorTasks = {};
 
   const playerIds = Object.keys(players);
-  // Pick ONE random player to be the Hunter
   const hunterIndex = Math.floor(Math.random() * playerIds.length);
   const hunterId = playerIds[hunterIndex];
+
+  // Move task locations into open hallways away from obstacles
+  const taskLocations = [
+    { x: 150, y: 350 }, // Open left area
+    { x: 680, y: 480 }, // Open bottom-right area
+    { x: 500, y: 140 }  // Open top-mid area
+  ];
+  let taskIndex = 0;
 
   playerIds.forEach((id) => {
     const isHunter = (id === hunterId);
     players[id].role = isHunter ? 'hunter' : 'survivor';
     players[id].alive = true;
-    // Hunter spawns top-left, survivors spawn bottom/middle
+    players[id].escaped = false;
+    players[id].taskCompleted = false;
+
+    // Spawns
     players[id].x = isHunter ? 120 : Math.floor(Math.random() * 200) + 300;
     players[id].y = isHunter ? 120 : Math.floor(Math.random() * 200) + 300;
+
+    // Assign an individual task location per survivor
+    if (!isHunter) {
+      const loc = taskLocations[taskIndex % taskLocations.length];
+      survivorTasks[id] = {
+        x: loc.x,
+        y: loc.y,
+        completed: false
+      };
+      taskIndex++;
+    }
   });
 
   io.emit('matchStarted', {
     players,
-    keycard,
+    survivorTasks,
     exitGate
   });
-  console.log(`[!] Match started with 3 players! Hunter is: ${hunterId}`);
+  console.log(`[!] Match started. Hunter: ${hunterId}`);
+}
+
+function checkMatchEndCondition() {
+  const survivors = Object.values(players).filter(p => p.role === 'survivor');
+  if (survivors.length === 0) return;
+
+  const allDone = survivors.every(s => !s.alive || s.escaped);
+
+  if (allDone) {
+    gameState = 'ended';
+    const escapedCount = survivors.filter(s => s.escaped).length;
+
+    if (escapedCount === 0) {
+      io.emit('gameOver', {
+        winner: 'hunter',
+        message: 'MATCH OVER\nAll survivors are eliminated!'
+      });
+    } else {
+      io.emit('gameOver', {
+        winner: 'survivor',
+        message: 'MATCH OVER\nSurvivors Escaped!'
+      });
+    }
+  }
 }
 
 io.on('connection', (socket) => {
   console.log(`[+] Player joined: ${socket.id}`);
 
-  // Listen for replay / restart request
-  socket.on('requestRestart', () => {
-    // Only restart if match is actually finished
-    if (gameState === 'ended') {
-      console.log(`[!] Replay initiated by ${socket.id}`);
-      startMatch();
-    }
-  });
-
-  // Default player setup in waiting lobby
   players[socket.id] = {
     id: socket.id,
     x: 400,
     y: 300,
     angle: 0,
     role: 'waiting',
-    alive: true
+    alive: true,
+    escaped: false,
+    taskCompleted: false
   };
 
-  // Send current lobby status to everyone
   const currentCount = Object.keys(players).length;
   io.emit('lobbyUpdate', {
     count: currentCount,
@@ -83,62 +115,81 @@ io.on('connection', (socket) => {
     gameState: gameState
   });
 
-  // Start match automatically when 3 players have gathered
   if (currentCount === REQUIRED_PLAYERS && gameState === 'waiting') {
     startMatch();
   }
 
-  // Position updates
+  // Sync position
   socket.on('playerMovement', (movementData) => {
-    if (players[socket.id] && gameState === 'in_progress') {
-      players[socket.id].x = movementData.x;
-      players[socket.id].y = movementData.y;
-      players[socket.id].angle = movementData.angle;
-      socket.broadcast.emit('playerMoved', players[socket.id]);
+    const p = players[socket.id];
+    if (p && gameState === 'in_progress' && p.alive && !p.escaped) {
+      p.x = movementData.x;
+      p.y = movementData.y;
+      p.angle = movementData.angle;
+      socket.broadcast.emit('playerMoved', p);
     }
   });
 
-  // Pickup Keycard
+  // Individual task pickup
   socket.on('pickupItem', () => {
     const p = players[socket.id];
-    if (!p || p.role !== 'survivor' || keycard.collected || gameState !== 'in_progress') return;
+    const task = survivorTasks[socket.id];
 
-    const dist = Math.hypot(p.x - keycard.x, p.y - keycard.y);
+    if (!p || p.role !== 'survivor' || !p.alive || p.taskCompleted || !task || gameState !== 'in_progress') return;
+
+    const dist = Math.hypot(p.x - task.x, p.y - task.y);
     if (dist < 60) {
-      keycard.collected = true;
-      keycard.carriedBy = socket.id;
-      exitGate.unlocked = true;
-      io.emit('itemCollected', { collectorId: socket.id });
+      p.taskCompleted = true;
+      task.completed = true;
+      socket.emit('personalTaskDone');
+      console.log(`[!] Survivor ${socket.id} finished their individual task!`);
     }
   });
 
-  // Survivor escape
+  // Individual survivor escape
   socket.on('playerEscaped', () => {
-    if (gameState !== 'in_progress' || !exitGate.unlocked) return;
-    gameState = 'ended';
-    io.emit('gameOver', { winner: 'survivor', message: 'SURVIVORS ESCAPED!' });
+    const p = players[socket.id];
+    if (!p || p.role !== 'survivor' || !p.alive || !p.taskCompleted || p.escaped || gameState !== 'in_progress') return;
+
+    const dist = Math.hypot(p.x - exitGate.x, p.y - exitGate.y);
+    if (dist < 60) {
+      p.escaped = true;
+      socket.emit('youEscaped');
+      socket.broadcast.emit('survivorEscapedNotification', { id: socket.id });
+      console.log(`[!] Survivor ${socket.id} made it to the exit and escaped!`);
+      checkMatchEndCondition();
+    }
   });
 
-  // Hunter attack
+  // Hunter attacks (individual kill)
   socket.on('hunterAttack', () => {
     const hunter = players[socket.id];
     if (!hunter || hunter.role !== 'hunter' || gameState !== 'in_progress') return;
 
     Object.values(players).forEach((target) => {
-      if (target.role === 'survivor' && target.alive) {
+      if (target.role === 'survivor' && target.alive && !target.escaped) {
         const dist = Math.hypot(hunter.x - target.x, hunter.y - target.y);
         if (dist < 65) {
-          gameState = 'ended';
-          io.emit('gameOver', { winner: 'hunter', message: 'THE HUNTER WINS!' });
+          target.alive = false;
+          io.emit('survivorEliminated', { victimId: target.id });
+          console.log(`[x] Survivor ${target.id} eliminated by Hunter!`);
+          checkMatchEndCondition();
         }
       }
     });
   });
 
-  // Handle player leaving
+  // Replay
+  socket.on('requestRestart', () => {
+    if (gameState === 'ended') {
+      startMatch();
+    }
+  });
+
+  // Disconnect
   socket.on('disconnect', () => {
-    console.log(`[-] Player left: ${socket.id}`);
     delete players[socket.id];
+    delete survivorTasks[socket.id];
     io.emit('playerDisconnected', socket.id);
 
     const remaining = Object.keys(players).length;
@@ -149,6 +200,8 @@ io.on('connection', (socket) => {
         required: REQUIRED_PLAYERS,
         gameState: gameState
       });
+    } else if (gameState === 'in_progress') {
+      checkMatchEndCondition();
     }
   });
 });
