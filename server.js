@@ -18,6 +18,10 @@ let hunterSocketId = null;
 // Footprint throttle per survivor
 const lastFootprintTime = {};
 
+// Channeling tracking: socketId -> { startTime, taskId }
+const activeChannels = {};
+const CHANNEL_DURATION_MS = 2400; // ~2.5 seconds with slight network buffer
+
 const ATTACK_COOLDOWN_MS = 1200;
 
 const exitGate = {
@@ -122,7 +126,6 @@ io.on('connection', (socket) => {
     startMatch();
   }
 
-  // Position updates & Sprint footprint checks
   socket.on('playerMovement', (movementData) => {
     const p = players[socket.id];
     if (p && gameState === 'in_progress' && p.alive && !p.escaped) {
@@ -131,7 +134,6 @@ io.on('connection', (socket) => {
       p.angle = movementData.angle;
       socket.broadcast.emit('playerMoved', p);
 
-      // If a survivor is sprinting, drop a footprint visible strictly to the Hunter
       if (p.role === 'survivor' && movementData.isSprinting && hunterSocketId) {
         const now = Date.now();
         const lastTime = lastFootprintTime[socket.id] || 0;
@@ -147,18 +149,46 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('pickupItem', () => {
+  // Start Channeling Task
+  socket.on('startChanneling', () => {
     const p = players[socket.id];
     const task = survivorTasks[socket.id];
-
     if (!p || p.role !== 'survivor' || !p.alive || p.taskCompleted || !task || gameState !== 'in_progress') return;
 
     const dist = Math.hypot(p.x - task.x, p.y - task.y);
-    if (dist < 60) {
+    if (dist < 65) {
+      activeChannels[socket.id] = Date.now();
+      socket.emit('channelAccepted', { durationMs: 2500 });
+    }
+  });
+
+  // Cancel Channeling Task
+  socket.on('cancelChanneling', () => {
+    delete activeChannels[socket.id];
+  });
+
+  // Complete Channeling Task
+  socket.on('finishChanneling', () => {
+    const p = players[socket.id];
+    const task = survivorTasks[socket.id];
+    const startTime = activeChannels[socket.id];
+
+    if (!p || p.role !== 'survivor' || !p.alive || p.taskCompleted || !task || gameState !== 'in_progress' || !startTime) {
+      delete activeChannels[socket.id];
+      return;
+    }
+
+    const elapsed = Date.now() - startTime;
+    const dist = Math.hypot(p.x - task.x, p.y - task.y);
+
+    if (elapsed >= CHANNEL_DURATION_MS && dist < 70) {
       p.taskCompleted = true;
       task.completed = true;
+      delete activeChannels[socket.id];
       socket.emit('personalTaskDone');
-      console.log(`[!] Survivor ${socket.id} acquired keycard!`);
+      console.log(`[!] Survivor ${socket.id} completed channeling task!`);
+    } else {
+      delete activeChannels[socket.id];
     }
   });
 
@@ -176,18 +206,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Server-Authoritative Hunter Attack with strict cooldown
   socket.on('hunterAttack', () => {
     const hunter = players[socket.id];
     if (!hunter || hunter.role !== 'hunter' || gameState !== 'in_progress') return;
 
     const now = Date.now();
     if (now - hunter.lastAttackTime < ATTACK_COOLDOWN_MS) {
-      return; // Cooldown not ready
+      return;
     }
     hunter.lastAttackTime = now;
 
-    // Notify hunter of attack swing attempt (for UI cooldown feedback)
     socket.emit('attackExecuted', { cooldownMs: ATTACK_COOLDOWN_MS });
 
     let hitOccurred = false;
@@ -197,6 +225,7 @@ io.on('connection', (socket) => {
         if (dist < 65) {
           target.alive = false;
           hitOccurred = true;
+          delete activeChannels[target.id]; // Cancel channel on hit
           io.emit('survivorEliminated', { victimId: target.id });
           console.log(`[x] Survivor ${target.id} eliminated!`);
           checkMatchEndCondition();
@@ -219,6 +248,7 @@ io.on('connection', (socket) => {
     delete players[socket.id];
     delete survivorTasks[socket.id];
     delete lastFootprintTime[socket.id];
+    delete activeChannels[socket.id];
 
     if (socket.id === hunterSocketId) {
       hunterSocketId = null;
