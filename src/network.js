@@ -16,17 +16,21 @@ export class NetworkManager {
         sc.ui.taskListHeader.setVisible(false);
         sc.ui.taskItem1.setVisible(false);
         sc.ui.taskItem2.setVisible(false);
+        sc.ui.spectatorBanner.setVisible(false);
+        sc.ui.spectatorTip.setVisible(false);
+        sc.ui.hideGameOver();
         sc.player.setFillStyle(0x888888);
       }
     });
 
     s.on('matchStarted', (data) => {
-      sc.ui.endContainer.setVisible(false);
+      sc.ui.hideGameOver();
       sc.isAlive = true;
       sc.hasEscaped = false;
       sc.taskCompleted = false;
       sc.isChanneling = false;
       sc.channelProgress = 0;
+      sc.spectateTarget = null;
       sc.ui.setChannelProgress(false);
 
       sc.playerController.stamina = 100;
@@ -36,9 +40,12 @@ export class NetworkManager {
       sc.canAttack = true;
       sc.attackCooldownTimer = 0;
 
+      // Lock gate visually
       sc.exitDoor.setFillStyle(0x444444);
       sc.exitDoorText.setText('EXIT\n[LOCKED]').setColor('#ff4444');
 
+      sc.ui.spectatorBanner.setVisible(false);
+      sc.ui.spectatorTip.setVisible(false);
       sc.ui.taskItem1.setText('[ ] Bypass Security Terminal').setColor('#f1c40f');
       sc.ui.taskItem2.setText('[ ] Escape Through Exit').setColor('#555555');
 
@@ -46,14 +53,20 @@ export class NetworkManager {
       sc.footprintsGroup.clear(true, true);
 
       const myData = data.players[s.id];
+      if (!myData) return;
+
       sc.role = myData.role;
       sc.player.setPosition(myData.x, myData.y);
       sc.player.setVisible(true);
+
+      // Rebind camera to local player on start
+      sc.cameras.main.startFollow(sc.player, true, 0.08, 0.08);
 
       if (sc.role === 'hunter') {
         sc.player.setFillStyle(0xe74c3c);
         sc.ui.roleText.setText('ROLE: THE HUNTER').setColor('#e74c3c');
         sc.keycardSprite.setVisible(false);
+        sc.interactionPrompt.setVisible(false);
       } else {
         sc.player.setFillStyle(0x2ecc71);
         sc.ui.roleText.setText('ROLE: SURVIVOR').setColor('#2ecc71');
@@ -139,7 +152,8 @@ export class NetworkManager {
     s.on('youEscaped', () => {
       sc.hasEscaped = true;
       sc.player.setVisible(false);
-      sc.ui.taskItem2.setText('[✓] ESCAPED').setColor('#2ecc71');
+      sc.ui.showEscaped();
+      sc.cycleSpectateTarget();
     });
 
     s.on('survivorEscapedNotification', ({ id }) => {
@@ -154,11 +168,13 @@ export class NetworkManager {
         sc.isChanneling = false;
         sc.ui.setChannelProgress(false);
         sc.player.setFillStyle(0x444444);
-        sc.ui.taskItem1.setText('[X] ELIMINATED').setColor('#ff4444');
+        sc.ui.showEliminated();
+        sc.cycleSpectateTarget();
       } else {
         sc.otherPlayers.getChildren().forEach((other) => {
           if (other.playerId === victimId) {
             other.setFillStyle(0x444444);
+            other.isAlive = false;
           }
         });
       }
@@ -171,8 +187,7 @@ export class NetworkManager {
       sc.ui.setChannelProgress(false);
 
       const bannerColor = data.winner === 'survivor' ? '#2ecc71' : '#e74c3c';
-      sc.ui.endBannerText.setText(data.message).setColor(bannerColor);
-      sc.ui.endContainer.setVisible(true);
+      sc.ui.showGameOver(data.message, bannerColor);
     });
   }
 

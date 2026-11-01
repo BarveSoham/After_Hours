@@ -10,41 +10,45 @@ const io = new Server(server, {
 });
 
 const REQUIRED_PLAYERS = 3;
-let gameState = 'waiting'; // 'waiting', 'in_progress', 'ended'
+let gameState = 'waiting';
 let players = {};
 let survivorTasks = {};
 let hunterSocketId = null;
 
-// Footprint throttle per survivor
 const lastFootprintTime = {};
-
-// Channeling tracking: socketId -> { startTime, taskId }
 const activeChannels = {};
-const CHANNEL_DURATION_MS = 2400; // ~2.5 seconds with slight network buffer
-
+const CHANNEL_DURATION_MS = 2400;
 const ATTACK_COOLDOWN_MS = 1200;
 
 const exitGate = {
-  x: 740,
-  y: 80,
+  x: 1880,
+  y: 750,
   w: 60,
-  h: 60
+  h: 120
 };
 
+const SURVIVOR_SPAWNS = [
+  { x: 280, y: 350 },
+  { x: 280, y: 1150 }
+];
+
+const TASK_LOCATIONS = [
+  { x: 1000, y: 250 },
+  { x: 1000, y: 1250 },
+  { x: 1650, y: 350 }
+];
+
 function startMatch() {
+  const playerIds = Object.keys(players);
+  if (playerIds.length < REQUIRED_PLAYERS) return;
+
   gameState = 'in_progress';
   survivorTasks = {};
 
-  const playerIds = Object.keys(players);
   const hunterIndex = Math.floor(Math.random() * playerIds.length);
   hunterSocketId = playerIds[hunterIndex];
 
-  const taskLocations = [
-    { x: 150, y: 350 },
-    { x: 680, y: 480 },
-    { x: 500, y: 140 }
-  ];
-  let taskIndex = 0;
+  let survivorCount = 0;
 
   playerIds.forEach((id) => {
     const isHunter = (id === hunterSocketId);
@@ -54,17 +58,21 @@ function startMatch() {
     players[id].taskCompleted = false;
     players[id].lastAttackTime = 0;
 
-    players[id].x = isHunter ? 120 : (taskIndex === 0 ? 320 : 480);
-    players[id].y = isHunter ? 120 : 380;
+    if (isHunter) {
+      players[id].x = 1000;
+      players[id].y = 750;
+    } else {
+      const spawn = SURVIVOR_SPAWNS[survivorCount % SURVIVOR_SPAWNS.length];
+      players[id].x = spawn.x;
+      players[id].y = spawn.y;
 
-    if (!isHunter) {
-      const loc = taskLocations[taskIndex % taskLocations.length];
+      const loc = TASK_LOCATIONS[survivorCount % TASK_LOCATIONS.length];
       survivorTasks[id] = {
         x: loc.x,
         y: loc.y,
         completed: false
       };
-      taskIndex++;
+      survivorCount++;
     }
   });
 
@@ -73,7 +81,7 @@ function startMatch() {
     survivorTasks,
     exitGate
   });
-  console.log(`[!] Match started. Hunter: ${hunterSocketId}`);
+  console.log(`[!] Match started with ${playerIds.length} players. Hunter: ${hunterSocketId}`);
 }
 
 function checkMatchEndCondition() {
@@ -105,8 +113,8 @@ io.on('connection', (socket) => {
 
   players[socket.id] = {
     id: socket.id,
-    x: 400,
-    y: 300,
+    x: 1000,
+    y: 750,
     angle: 0,
     role: 'waiting',
     alive: true,
@@ -116,13 +124,14 @@ io.on('connection', (socket) => {
   };
 
   const currentCount = Object.keys(players).length;
+
   io.emit('lobbyUpdate', {
     count: currentCount,
     required: REQUIRED_PLAYERS,
     gameState: gameState
   });
 
-  if (currentCount === REQUIRED_PLAYERS && gameState === 'waiting') {
+  if (currentCount >= REQUIRED_PLAYERS && gameState === 'waiting') {
     startMatch();
   }
 
@@ -149,25 +158,22 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Start Channeling Task
   socket.on('startChanneling', () => {
     const p = players[socket.id];
     const task = survivorTasks[socket.id];
     if (!p || p.role !== 'survivor' || !p.alive || p.taskCompleted || !task || gameState !== 'in_progress') return;
 
     const dist = Math.hypot(p.x - task.x, p.y - task.y);
-    if (dist < 65) {
+    if (dist < 85) {
       activeChannels[socket.id] = Date.now();
       socket.emit('channelAccepted', { durationMs: 2500 });
     }
   });
 
-  // Cancel Channeling Task
   socket.on('cancelChanneling', () => {
     delete activeChannels[socket.id];
   });
 
-  // Complete Channeling Task
   socket.on('finishChanneling', () => {
     const p = players[socket.id];
     const task = survivorTasks[socket.id];
@@ -181,12 +187,11 @@ io.on('connection', (socket) => {
     const elapsed = Date.now() - startTime;
     const dist = Math.hypot(p.x - task.x, p.y - task.y);
 
-    if (elapsed >= CHANNEL_DURATION_MS && dist < 70) {
+    if (elapsed >= CHANNEL_DURATION_MS && dist < 95) {
       p.taskCompleted = true;
       task.completed = true;
       delete activeChannels[socket.id];
       socket.emit('personalTaskDone');
-      console.log(`[!] Survivor ${socket.id} completed channeling task!`);
     } else {
       delete activeChannels[socket.id];
     }
@@ -197,23 +202,21 @@ io.on('connection', (socket) => {
     if (!p || p.role !== 'survivor' || !p.alive || !p.taskCompleted || p.escaped || gameState !== 'in_progress') return;
 
     const dist = Math.hypot(p.x - exitGate.x, p.y - exitGate.y);
-    if (dist < 60) {
+    if (dist < 90) {
       p.escaped = true;
       socket.emit('youEscaped');
       socket.broadcast.emit('survivorEscapedNotification', { id: socket.id });
-      console.log(`[!] Survivor ${socket.id} escaped!`);
       checkMatchEndCondition();
     }
   });
 
+  // Hunter Attack with responsive latency-tolerant hit registration (105px radius)
   socket.on('hunterAttack', () => {
     const hunter = players[socket.id];
     if (!hunter || hunter.role !== 'hunter' || gameState !== 'in_progress') return;
 
     const now = Date.now();
-    if (now - hunter.lastAttackTime < ATTACK_COOLDOWN_MS) {
-      return;
-    }
+    if (now - hunter.lastAttackTime < ATTACK_COOLDOWN_MS) return;
     hunter.lastAttackTime = now;
 
     socket.emit('attackExecuted', { cooldownMs: ATTACK_COOLDOWN_MS });
@@ -222,12 +225,13 @@ io.on('connection', (socket) => {
     Object.values(players).forEach((target) => {
       if (target.role === 'survivor' && target.alive && !target.escaped) {
         const dist = Math.hypot(hunter.x - target.x, hunter.y - target.y);
-        if (dist < 65) {
+        // Adjusted to 105px to comfortably bridge network lerp latency
+        if (dist <= 105) {
           target.alive = false;
           hitOccurred = true;
-          delete activeChannels[target.id]; // Cancel channel on hit
+          delete activeChannels[target.id];
           io.emit('survivorEliminated', { victimId: target.id });
-          console.log(`[x] Survivor ${target.id} eliminated!`);
+          console.log(`[x] Hunter hit survivor ${target.id} (distance: ${Math.round(dist)}px)`);
           checkMatchEndCondition();
         }
       }
@@ -239,9 +243,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('requestRestart', () => {
-    if (gameState === 'ended') {
-      startMatch();
-    }
+    console.log(`[!] Restart requested by ${socket.id}`);
+    startMatch();
   });
 
   socket.on('disconnect', () => {
