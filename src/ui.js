@@ -10,7 +10,6 @@ export class UIManager {
     this.smoothedDanger = 0;
     this.pulsePhase = 0;
 
-    // Floating channel bar above player (world space)
     this.channelBarBg = scene.add.rectangle(0, 0, 46, 7, 0x222226, 0.9).setDepth(26).setVisible(false);
     this.channelBarFill = scene.add.rectangle(0, 0, 0, 5, 0x00ff88, 1.0).setDepth(27).setVisible(false);
 
@@ -27,7 +26,6 @@ export class UIManager {
       fontFamily: 'monospace'
     }).setDepth(21).setScrollFactor(0);
 
-    // Objectives list (top-left)
     this.taskListHeader = this.scene.add.text(24, 44, 'OBJECTIVES:', {
       fontSize: '12px',
       color: '#ffffff',
@@ -47,7 +45,6 @@ export class UIManager {
       fontFamily: 'monospace'
     }).setDepth(21).setVisible(false).setScrollFactor(0);
 
-    // TOP-CENTER SPECTATOR BANNER
     this.spectatorBanner = this.scene.add.text(cx, 32, '', {
       fontSize: '18px',
       fontFamily: 'monospace',
@@ -64,7 +61,6 @@ export class UIManager {
       align: 'center'
     }).setOrigin(0.5, 0.5).setDepth(30).setVisible(false).setScrollFactor(0);
 
-    // Hunter Attack Status
     this.attackCooldownText = this.scene.add.text(24, 46, 'ATTACK: READY', {
       fontSize: '12px',
       color: '#2ecc71',
@@ -80,13 +76,12 @@ export class UIManager {
 
     this.isGameOverVisible = false;
 
-    // Full screen overlay drawn in camera screen space
     this.endOverlay = this.scene.add.rectangle(cx, cy, width, height, 0x000000, 0.85)
       .setDepth(100)
       .setScrollFactor(0)
       .setVisible(false);
 
-    this.endBannerText = this.scene.add.text(cx, cy - 60, '', {
+    this.endBannerText = this.scene.add.text(cx, cy - 70, '', {
       fontSize: '28px',
       fontFamily: 'monospace',
       fontStyle: 'bold',
@@ -94,33 +89,49 @@ export class UIManager {
       lineSpacing: 8
     }).setOrigin(0.5).setDepth(101).setScrollFactor(0).setVisible(false);
 
-    this.btnBg = this.scene.add.rectangle(cx, cy + 45, 200, 46, 0x27ae60)
+    // PLAY AGAIN BUTTON
+    this.btnBg = this.scene.add.rectangle(cx - 110, cy + 45, 190, 46, 0x27ae60)
       .setDepth(101)
       .setScrollFactor(0)
       .setVisible(false);
 
-    this.btnText = this.scene.add.text(cx, cy + 45, 'PLAY AGAIN', {
-      fontSize: '16px',
+    this.btnText = this.scene.add.text(cx - 110, cy + 45, 'PLAY AGAIN', {
+      fontSize: '15px',
       fontFamily: 'monospace',
       fontStyle: 'bold',
       color: '#ffffff'
     }).setOrigin(0.5).setDepth(102).setScrollFactor(0).setVisible(false);
 
-    // Screen-space pointer click test (immune to camera offsets)
+    // RETURN TO LOBBY BUTTON
+    this.btnLobbyBg = this.scene.add.rectangle(cx + 110, cy + 45, 190, 46, 0x0c292b)
+      .setDepth(101)
+      .setScrollFactor(0)
+      .setVisible(false);
+
+    this.btnLobbyText = this.scene.add.text(cx + 110, cy + 45, 'BACK TO LOBBY', {
+      fontSize: '15px',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      color: '#4fffe3'
+    }).setOrigin(0.5).setDepth(102).setScrollFactor(0).setVisible(false);
+
+    // Direct click listener
     this.scene.input.on('pointerdown', (pointer) => {
       if (!this.isGameOverVisible) return;
 
       const px = pointer.x;
       const py = pointer.y;
 
-      const btnLeft = cx - 100;
-      const btnRight = cx + 100;
-      const btnTop = cy + 45 - 23;
-      const btnBottom = cy + 45 + 23;
-
-      if (px >= btnLeft && px <= btnRight && py >= btnTop && py <= btnBottom) {
+      // Play Again Hitbox
+      if (px >= cx - 205 && px <= cx - 15 && py >= cy + 22 && py <= cy + 68) {
         this.btnBg.setFillStyle(0x1e8449);
         this.scene.socket.emit('requestRestart');
+      }
+
+      // Return to Lobby Hitbox
+      if (px >= cx + 15 && px <= cx + 205 && py >= cy + 22 && py <= cy + 68) {
+        this.btnLobbyBg.setFillStyle(0x16403d);
+        this.scene.returnToLobby();
       }
     });
 
@@ -129,15 +140,19 @@ export class UIManager {
 
       const px = pointer.x;
       const py = pointer.y;
-      const btnLeft = cx - 100;
-      const btnRight = cx + 100;
-      const btnTop = cy + 45 - 23;
-      const btnBottom = cy + 45 + 23;
 
-      if (px >= btnLeft && px <= btnRight && py >= btnTop && py <= btnBottom) {
+      // Hover Play Again
+      if (px >= cx - 205 && px <= cx - 15 && py >= cy + 22 && py <= cy + 68) {
         this.btnBg.setFillStyle(0x2ecc71);
       } else {
         this.btnBg.setFillStyle(0x27ae60);
+      }
+
+      // Hover Back to Lobby
+      if (px >= cx + 15 && px <= cx + 205 && py >= cy + 22 && py <= cy + 68) {
+        this.btnLobbyBg.setFillStyle(0x16403d);
+      } else {
+        this.btnLobbyBg.setFillStyle(0x0c292b);
       }
     });
   }
@@ -150,6 +165,8 @@ export class UIManager {
     this.endBannerText.setVisible(true);
     this.btnBg.setVisible(true);
     this.btnText.setVisible(true);
+    this.btnLobbyBg.setVisible(true);
+    this.btnLobbyText.setVisible(true);
 
     this.spectatorBanner.setVisible(false);
     this.spectatorTip.setVisible(false);
@@ -161,6 +178,8 @@ export class UIManager {
     this.endBannerText.setVisible(false);
     this.btnBg.setVisible(false);
     this.btnText.setVisible(false);
+    this.btnLobbyBg.setVisible(false);
+    this.btnLobbyText.setVisible(false);
   }
 
   showEliminated() {

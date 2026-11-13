@@ -10,64 +10,67 @@ const io = new Server(server, {
 });
 
 const REQUIRED_PLAYERS = 3;
-let gameState = 'waiting';
-let players = {};
-let survivorTasks = {};
-let hunterSocketId = null;
 
-const lastFootprintTime = {};
-const activeChannels = {};
-const CHANNEL_DURATION_MS = 2400;
-const ATTACK_COOLDOWN_MS = 1200;
+// rooms[roomCode] = { gameState, players: {}, survivorTasks: {}, hunterSocketId, hostId, activeChannels: {} }
+const rooms = {};
 
+// East Exit Chamber is from x: 1400..1990 and y: 450..1050
 const exitGate = {
-  x: 1880,
+  x: 1840,
   y: 750,
   w: 60,
   h: 120
 };
 
+// Distinct spawns in the surrounding outer rooms
 const SURVIVOR_SPAWNS = [
-  { x: 280, y: 350 },
-  { x: 280, y: 1150 }
+  { x: 300, y: 250 },   // North-West Room
+  { x: 300, y: 1250 }   // South-West Room
 ];
 
+// Terminals inside distinct outer rooms
 const TASK_LOCATIONS = [
-  { x: 1000, y: 250 },
-  { x: 1000, y: 1250 },
-  { x: 1650, y: 350 }
+  { x: 1000, y: 240 },  // North Lab
+  { x: 1000, y: 1260 }, // South Storage
+  { x: 1700, y: 240 }   // North-East Room
 ];
+const CHANNEL_DURATION_MS = 1200;
+const ATTACK_COOLDOWN_MS = 1200;
 
-function startMatch() {
-  const playerIds = Object.keys(players);
-  if (playerIds.length < REQUIRED_PLAYERS) return;
+function startMatch(roomCode) {
+  const room = rooms[roomCode];
+  if (!room) return;
 
-  gameState = 'in_progress';
-  survivorTasks = {};
+  const playerIds = Object.keys(room.players);
+  if (playerIds.length < 2) return; // Allow 2-3+ players to test freely
+
+  room.gameState = 'in_progress';
+  room.survivorTasks = {};
+  room.activeChannels = {};
 
   const hunterIndex = Math.floor(Math.random() * playerIds.length);
-  hunterSocketId = playerIds[hunterIndex];
+  room.hunterSocketId = playerIds[hunterIndex];
 
   let survivorCount = 0;
 
   playerIds.forEach((id) => {
-    const isHunter = (id === hunterSocketId);
-    players[id].role = isHunter ? 'hunter' : 'survivor';
-    players[id].alive = true;
-    players[id].escaped = false;
-    players[id].taskCompleted = false;
-    players[id].lastAttackTime = 0;
+    const isHunter = (id === room.hunterSocketId);
+    room.players[id].role = isHunter ? 'hunter' : 'survivor';
+    room.players[id].alive = true;
+    room.players[id].escaped = false;
+    room.players[id].taskCompleted = false;
+    room.players[id].lastAttackTime = 0;
 
     if (isHunter) {
-      players[id].x = 1000;
-      players[id].y = 750;
+      room.players[id].x = 1000;
+      room.players[id].y = 750;
     } else {
       const spawn = SURVIVOR_SPAWNS[survivorCount % SURVIVOR_SPAWNS.length];
-      players[id].x = spawn.x;
-      players[id].y = spawn.y;
+      room.players[id].x = spawn.x;
+      room.players[id].y = spawn.y;
 
       const loc = TASK_LOCATIONS[survivorCount % TASK_LOCATIONS.length];
-      survivorTasks[id] = {
+      room.survivorTasks[id] = {
         x: loc.x,
         y: loc.y,
         completed: false
@@ -76,79 +79,122 @@ function startMatch() {
     }
   });
 
-  io.emit('matchStarted', {
-    players,
-    survivorTasks,
+  io.to(roomCode).emit('matchStarted', {
+    players: room.players,
+    survivorTasks: room.survivorTasks,
     exitGate
   });
-  console.log(`[!] Match started with ${playerIds.length} players. Hunter: ${hunterSocketId}`);
+  console.log(`[!] Match started in [${roomCode}] with ${playerIds.length} players. Hunter: ${room.hunterSocketId}`);
 }
 
-function checkMatchEndCondition() {
-  const survivors = Object.values(players).filter(p => p.role === 'survivor');
+function checkMatchEndCondition(roomCode) {
+  const room = rooms[roomCode];
+  if (!room || room.gameState !== 'in_progress') return;
+
+  const survivors = Object.values(room.players).filter(p => p.role === 'survivor');
   if (survivors.length === 0) return;
 
   const allDone = survivors.every(s => !s.alive || s.escaped);
 
   if (allDone) {
-    gameState = 'ended';
+    room.gameState = 'ended';
     const escapedCount = survivors.filter(s => s.escaped).length;
 
     if (escapedCount === 0) {
-      io.emit('gameOver', {
+      io.to(roomCode).emit('gameOver', {
         winner: 'hunter',
-        message: 'MATCH OVER\nAll survivors were eliminated!'
+        message: 'MATCH OVER\nAll wanderers perished in the woods!'
       });
     } else {
-      io.emit('gameOver', {
+      io.to(roomCode).emit('gameOver', {
         winner: 'survivor',
-        message: 'MATCH OVER\nSurvivors Escaped!'
+        message: 'MATCH OVER\nSurvivors Escaped The Night!'
       });
     }
   }
 }
 
 io.on('connection', (socket) => {
-  console.log(`[+] Player joined: ${socket.id}`);
+  let currentRoom = null;
 
-  players[socket.id] = {
-    id: socket.id,
-    x: 1000,
-    y: 750,
-    angle: 0,
-    role: 'waiting',
-    alive: true,
-    escaped: false,
-    taskCompleted: false,
-    lastAttackTime: 0
-  };
+  socket.on('joinRoom', ({ name, roomCode }) => {
+    currentRoom = (roomCode || 'WOODS-1').toUpperCase().trim();
+    socket.join(currentRoom);
 
-  const currentCount = Object.keys(players).length;
+    if (!rooms[currentRoom]) {
+      rooms[currentRoom] = {
+        gameState: 'waiting',
+        hostId: socket.id,
+        players: {},
+        survivorTasks: {},
+        hunterSocketId: null,
+        activeChannels: {},
+        lastFootprintTime: {}
+      };
+    }
 
-  io.emit('lobbyUpdate', {
-    count: currentCount,
-    required: REQUIRED_PLAYERS,
-    gameState: gameState
+    const room = rooms[currentRoom];
+    room.players[socket.id] = {
+      id: socket.id,
+      name: name || 'Lost_Seeker',
+      x: 1000,
+      y: 750,
+      angle: 0,
+      role: 'waiting',
+      alive: true,
+      escaped: false,
+      ready: true,
+      taskCompleted: false,
+      lastAttackTime: 0
+    };
+
+    console.log(`[+] ${name} (${socket.id}) joined [${currentRoom}]`);
+
+    // Broadcast room roster
+    io.to(currentRoom).emit('lobbyRosterUpdate', {
+      roomCode: currentRoom,
+      hostId: room.hostId,
+      players: Object.values(room.players),
+      gameState: room.gameState
+    });
   });
 
-  if (currentCount >= REQUIRED_PLAYERS && gameState === 'waiting') {
-    startMatch();
-  }
+  socket.on('toggleReady', () => {
+    if (!currentRoom || !rooms[currentRoom]) return;
+    const p = rooms[currentRoom].players[socket.id];
+    if (p) {
+      p.ready = !p.ready;
+      io.to(currentRoom).emit('lobbyRosterUpdate', {
+        roomCode: currentRoom,
+        hostId: rooms[currentRoom].hostId,
+        players: Object.values(rooms[currentRoom].players),
+        gameState: rooms[currentRoom].gameState
+      });
+    }
+  });
+
+  socket.on('startMatchRequest', () => {
+    if (!currentRoom || !rooms[currentRoom]) return;
+    startMatch(currentRoom);
+  });
 
   socket.on('playerMovement', (movementData) => {
-    const p = players[socket.id];
-    if (p && gameState === 'in_progress' && p.alive && !p.escaped) {
+    if (!currentRoom || !rooms[currentRoom]) return;
+    const room = rooms[currentRoom];
+    const p = room.players[socket.id];
+
+    if (p && room.gameState === 'in_progress' && p.alive && !p.escaped) {
       p.x = movementData.x;
       p.y = movementData.y;
       p.angle = movementData.angle;
-      socket.broadcast.emit('playerMoved', p);
+      socket.to(currentRoom).emit('playerMoved', p);
 
-      if (p.role === 'survivor' && movementData.isSprinting && hunterSocketId) {
+      if (p.role === 'survivor' && movementData.isSprinting && room.hunterSocketId) {
         const now = Date.now();
-        const lastTime = lastFootprintTime[socket.id] || 0;
+        const lastTime = room.lastFootprintTime[socket.id] || 0;
         if (now - lastTime > 220) {
-          lastFootprintTime[socket.id] = now;
-          io.to(hunterSocketId).emit('spawnFootprint', {
+          room.lastFootprintTime[socket.id] = now;
+          io.to(room.hunterSocketId).emit('spawnFootprint', {
             x: p.x,
             y: p.y,
             angle: p.angle
@@ -159,28 +205,35 @@ io.on('connection', (socket) => {
   });
 
   socket.on('startChanneling', () => {
-    const p = players[socket.id];
-    const task = survivorTasks[socket.id];
-    if (!p || p.role !== 'survivor' || !p.alive || p.taskCompleted || !task || gameState !== 'in_progress') return;
+    if (!currentRoom || !rooms[currentRoom]) return;
+    const room = rooms[currentRoom];
+    const p = room.players[socket.id];
+    const task = room.survivorTasks[socket.id];
+
+    if (!p || p.role !== 'survivor' || !p.alive || p.taskCompleted || !task || room.gameState !== 'in_progress') return;
 
     const dist = Math.hypot(p.x - task.x, p.y - task.y);
     if (dist < 85) {
-      activeChannels[socket.id] = Date.now();
-      socket.emit('channelAccepted', { durationMs: 2500 });
+      room.activeChannels[socket.id] = Date.now();
+      socket.emit('channelAccepted', { durationMs: 1250 }); // Changed from 2500
     }
   });
 
   socket.on('cancelChanneling', () => {
-    delete activeChannels[socket.id];
+    if (currentRoom && rooms[currentRoom]) {
+      delete rooms[currentRoom].activeChannels[socket.id];
+    }
   });
 
   socket.on('finishChanneling', () => {
-    const p = players[socket.id];
-    const task = survivorTasks[socket.id];
-    const startTime = activeChannels[socket.id];
+    if (!currentRoom || !rooms[currentRoom]) return;
+    const room = rooms[currentRoom];
+    const p = room.players[socket.id];
+    const task = room.survivorTasks[socket.id];
+    const startTime = room.activeChannels[socket.id];
 
-    if (!p || p.role !== 'survivor' || !p.alive || p.taskCompleted || !task || gameState !== 'in_progress' || !startTime) {
-      delete activeChannels[socket.id];
+    if (!p || p.role !== 'survivor' || !p.alive || p.taskCompleted || !task || room.gameState !== 'in_progress' || !startTime) {
+      if (room.activeChannels) delete room.activeChannels[socket.id];
       return;
     }
 
@@ -190,30 +243,35 @@ io.on('connection', (socket) => {
     if (elapsed >= CHANNEL_DURATION_MS && dist < 95) {
       p.taskCompleted = true;
       task.completed = true;
-      delete activeChannels[socket.id];
+      delete room.activeChannels[socket.id];
       socket.emit('personalTaskDone');
     } else {
-      delete activeChannels[socket.id];
+      delete room.activeChannels[socket.id];
     }
   });
 
   socket.on('playerEscaped', () => {
-    const p = players[socket.id];
-    if (!p || p.role !== 'survivor' || !p.alive || !p.taskCompleted || p.escaped || gameState !== 'in_progress') return;
+    if (!currentRoom || !rooms[currentRoom]) return;
+    const room = rooms[currentRoom];
+    const p = room.players[socket.id];
+
+    if (!p || p.role !== 'survivor' || !p.alive || !p.taskCompleted || p.escaped || room.gameState !== 'in_progress') return;
 
     const dist = Math.hypot(p.x - exitGate.x, p.y - exitGate.y);
     if (dist < 90) {
       p.escaped = true;
       socket.emit('youEscaped');
-      socket.broadcast.emit('survivorEscapedNotification', { id: socket.id });
-      checkMatchEndCondition();
+      socket.to(currentRoom).emit('survivorEscapedNotification', { id: socket.id });
+      checkMatchEndCondition(currentRoom);
     }
   });
 
-  // Hunter Attack with responsive latency-tolerant hit registration (105px radius)
   socket.on('hunterAttack', () => {
-    const hunter = players[socket.id];
-    if (!hunter || hunter.role !== 'hunter' || gameState !== 'in_progress') return;
+    if (!currentRoom || !rooms[currentRoom]) return;
+    const room = rooms[currentRoom];
+    const hunter = room.players[socket.id];
+
+    if (!hunter || hunter.role !== 'hunter' || room.gameState !== 'in_progress') return;
 
     const now = Date.now();
     if (now - hunter.lastAttackTime < ATTACK_COOLDOWN_MS) return;
@@ -222,53 +280,63 @@ io.on('connection', (socket) => {
     socket.emit('attackExecuted', { cooldownMs: ATTACK_COOLDOWN_MS });
 
     let hitOccurred = false;
-    Object.values(players).forEach((target) => {
+    Object.values(room.players).forEach((target) => {
       if (target.role === 'survivor' && target.alive && !target.escaped) {
         const dist = Math.hypot(hunter.x - target.x, hunter.y - target.y);
-        // Adjusted to 105px to comfortably bridge network lerp latency
         if (dist <= 105) {
           target.alive = false;
           hitOccurred = true;
-          delete activeChannels[target.id];
-          io.emit('survivorEliminated', { victimId: target.id });
-          console.log(`[x] Hunter hit survivor ${target.id} (distance: ${Math.round(dist)}px)`);
-          checkMatchEndCondition();
+          if (room.activeChannels) delete room.activeChannels[target.id];
+          io.to(currentRoom).emit('survivorEliminated', { victimId: target.id });
+          checkMatchEndCondition(currentRoom);
         }
       }
     });
 
     if (hitOccurred) {
-      io.emit('hunterHitEffect');
+      io.to(currentRoom).emit('hunterHitEffect');
     }
   });
 
   socket.on('requestRestart', () => {
-    console.log(`[!] Restart requested by ${socket.id}`);
-    startMatch();
+    if (currentRoom && rooms[currentRoom]) {
+      startMatch(currentRoom);
+    }
   });
 
   socket.on('disconnect', () => {
-    delete players[socket.id];
-    delete survivorTasks[socket.id];
-    delete lastFootprintTime[socket.id];
-    delete activeChannels[socket.id];
+    if (!currentRoom || !rooms[currentRoom]) return;
+    const room = rooms[currentRoom];
 
-    if (socket.id === hunterSocketId) {
-      hunterSocketId = null;
+    delete room.players[socket.id];
+    delete room.survivorTasks[socket.id];
+    if (room.activeChannels) delete room.activeChannels[socket.id];
+
+    if (socket.id === room.hunterSocketId) {
+      room.hunterSocketId = null;
     }
 
-    io.emit('playerDisconnected', socket.id);
+    if (socket.id === room.hostId) {
+      const remainingIds = Object.keys(room.players);
+      room.hostId = remainingIds.length > 0 ? remainingIds[0] : null;
+    }
 
-    const remaining = Object.keys(players).length;
-    if (remaining < REQUIRED_PLAYERS) {
-      gameState = 'waiting';
-      io.emit('lobbyUpdate', {
-        count: remaining,
-        required: REQUIRED_PLAYERS,
-        gameState: gameState
+    io.to(currentRoom).emit('playerDisconnected', socket.id);
+
+    const remaining = Object.keys(room.players).length;
+    if (remaining === 0) {
+      delete rooms[currentRoom];
+    } else {
+      io.to(currentRoom).emit('lobbyRosterUpdate', {
+        roomCode: currentRoom,
+        hostId: room.hostId,
+        players: Object.values(room.players),
+        gameState: room.gameState
       });
-    } else if (gameState === 'in_progress') {
-      checkMatchEndCondition();
+
+      if (room.gameState === 'in_progress') {
+        checkMatchEndCondition(currentRoom);
+      }
     }
   });
 });

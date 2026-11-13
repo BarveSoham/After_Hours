@@ -9,20 +9,6 @@ export class NetworkManager {
     const s = this.socket;
     const sc = this.scene;
 
-    s.on('lobbyUpdate', (lobby) => {
-      if (lobby.gameState === 'waiting') {
-        sc.isMatchActive = false;
-        sc.ui.roleText.setText(`WAITING FOR PLAYERS (${lobby.count}/${lobby.required})...`).setColor('#f1c40f');
-        sc.ui.taskListHeader.setVisible(false);
-        sc.ui.taskItem1.setVisible(false);
-        sc.ui.taskItem2.setVisible(false);
-        sc.ui.spectatorBanner.setVisible(false);
-        sc.ui.spectatorTip.setVisible(false);
-        sc.ui.hideGameOver();
-        sc.player.setFillStyle(0x888888);
-      }
-    });
-
     s.on('matchStarted', (data) => {
       sc.ui.hideGameOver();
       sc.isAlive = true;
@@ -40,15 +26,14 @@ export class NetworkManager {
       sc.canAttack = true;
       sc.attackCooldownTimer = 0;
 
-      // Lock gate visually
+      // Lock exit gate
       sc.exitDoor.setFillStyle(0x444444);
       sc.exitDoorText.setText('EXIT\n[LOCKED]').setColor('#ff4444');
 
       sc.ui.spectatorBanner.setVisible(false);
       sc.ui.spectatorTip.setVisible(false);
-      sc.ui.taskItem1.setText('[ ] Bypass Security Terminal').setColor('#f1c40f');
-      sc.ui.taskItem2.setText('[ ] Escape Through Exit').setColor('#555555');
 
+      // Clear previous match entities
       sc.otherPlayers.clear(true, true);
       sc.footprintsGroup.clear(true, true);
 
@@ -59,7 +44,7 @@ export class NetworkManager {
       sc.player.setPosition(myData.x, myData.y);
       sc.player.setVisible(true);
 
-      // Rebind camera to local player on start
+      // Re-anchor camera follow to local player
       sc.cameras.main.startFollow(sc.player, true, 0.08, 0.08);
 
       if (sc.role === 'hunter') {
@@ -67,9 +52,15 @@ export class NetworkManager {
         sc.ui.roleText.setText('ROLE: THE HUNTER').setColor('#e74c3c');
         sc.keycardSprite.setVisible(false);
         sc.interactionPrompt.setVisible(false);
+        sc.ui.taskListHeader.setVisible(false);
+        sc.ui.taskItem1.setVisible(false);
+        sc.ui.taskItem2.setVisible(false);
+        sc.ui.attackCooldownText.setVisible(true);
       } else {
         sc.player.setFillStyle(0x2ecc71);
         sc.ui.roleText.setText('ROLE: SURVIVOR').setColor('#2ecc71');
+        sc.ui.taskItem1.setText('[ ] Bypass Security Terminal').setColor('#f1c40f');
+        sc.ui.taskItem2.setText('[ ] Escape Through Exit').setColor('#555555');
 
         const myTask = data.survivorTasks[s.id];
         if (myTask) {
@@ -78,6 +69,7 @@ export class NetworkManager {
         }
       }
 
+      // Instantiate other players (including the Hunter)
       Object.keys(data.players).forEach((id) => {
         if (id !== s.id) {
           sc.addOtherPlayer(data.players[id]);

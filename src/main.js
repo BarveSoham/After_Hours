@@ -20,30 +20,25 @@ class MainScene extends Phaser.Scene {
     this.taskCompleted = false;
     this.isMatchActive = false;
 
-    // Spectator Target System
     this.spectateIndex = 0;
     this.spectateTarget = null;
 
-    // Channeling & Attack Cooldown
     this.isChanneling = false;
     this.channelProgress = 0;
-    this.channelDuration = 2500;
+    this.channelDuration = 1250; // Updated channel duration to 1250ms
     this.canAttack = true;
     this.attackCooldownTimer = 0;
     this.attackCooldownDuration = 1200;
 
     // 1. World Bounds
     this.physics.world.setBounds(0, 0, 2000, 1500);
+    const floor = this.add.grid(1000, 750, 2000, 1500, 64, 64, 0x141419, 1, 0x1d1d24, 0.6).setDepth(-1);
 
-    // 2. Floor Grid Ground
-    const floor = this.add.grid(1000, 750, 2000, 1500, 64, 64, 0x141419, 1, 0x1d1d24, 0.6);
-    floor.setDepth(-1);
-
-    // 3. Facility Walls
+    // 2. Obstacles
     this.obstacles = this.physics.add.staticGroup();
     this.createFacilityWalls();
 
-    // 4. East Wing Exit Gate
+    // 3. Exit Door
     this.exitDoor = this.add.rectangle(1880, 750, 60, 120, 0x444444);
     this.exitDoorText = this.add.text(1880, 750, 'EXIT\n[LOCKED]', {
       fontSize: '12px',
@@ -52,7 +47,7 @@ class MainScene extends Phaser.Scene {
       color: '#ff4444'
     }).setOrigin(0.5);
 
-    // 5. Keycard Terminal
+    // 4. Terminal
     this.keycardSprite = this.add.rectangle(0, 0, 26, 18, 0xf1c40f).setVisible(false);
     this.interactionPrompt = this.add.text(0, 0, 'Hold [E] to Bypass', {
       fontSize: '11px',
@@ -61,26 +56,26 @@ class MainScene extends Phaser.Scene {
       padding: { x: 5, y: 3 }
     }).setOrigin(0.5).setVisible(false).setDepth(25);
 
-    // 6. Local Player
+    // 5. Player
     this.player = this.add.rectangle(1000, 750, 36, 36, 0x888888);
     this.physics.add.existing(this.player);
     this.player.body.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.obstacles);
 
-    // 7. Camera Follow
+    // 6. Camera
     this.cameras.main.setBounds(0, 0, 2000, 1500);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
 
-    // 8. Darkness Screen Overlay
+    // 7. Darkness
     this.darkness = this.add.renderTexture(0, 0, 1280, 720).setDepth(10).setScrollFactor(0);
     this.createFlashlightGraphic();
 
-    // 9. Subsystems
+    // 8. Systems
     this.playerController = new PlayerController(this);
     this.ui = new UIManager(this);
     this.network = new NetworkManager(this);
 
-    // 10. Direct Hunter Attack Input & Spectator Click Trigger
+    // 9. Hunter attack click
     this.input.on('pointerdown', (pointer) => {
       if (this.ui.isGameOverVisible) return;
 
@@ -96,19 +91,150 @@ class MainScene extends Phaser.Scene {
 
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
-    this.scale.on('resize', this.handleResize, this);
+    // 10. Wire HTML & Return-to-Lobby controls
+    this.setupHTMLMenuBindings();
   }
 
-  handleResize(gameSize) {
-    if (this.darkness) {
-      this.darkness.resize(gameSize.width, gameSize.height);
+  returnToLobby() {
+    this.isMatchActive = false;
+    this.player.body.setVelocity(0);
+    this.ui.hideGameOver();
+    this.ui.heartbeatVignette.clear();
+
+    const menuLayer = document.getElementById('menu-layer');
+    const inGameLobbyBtn = document.getElementById('btnInGameLobbyReturn');
+
+    if (inGameLobbyBtn) inGameLobbyBtn.classList.add('hidden');
+    if (menuLayer) {
+      menuLayer.style.opacity = '1';
+      menuLayer.style.pointerEvents = 'auto';
+    }
+
+    // Open the lobby modal immediately
+    const modalLobby = document.getElementById('modalLobby');
+    if (modalLobby) {
+      modalLobby.classList.remove('hidden');
+      setTimeout(() => modalLobby.classList.remove('opacity-0'), 10);
     }
   }
 
+  setupHTMLMenuBindings() {
+    const btnPlayMain = document.getElementById('btnPlayMain');
+    const btnOpenCodex = document.getElementById('btnOpenCodex');
+    const btnOpenSettings = document.getElementById('btnOpenSettings');
+    const btnGenRoom = document.getElementById('btnGenRoom');
+    const btnJoinRoom = document.getElementById('btnJoinRoom');
+    const btnToggleReady = document.getElementById('btnToggleReady');
+    const btnCommenceWoods = document.getElementById('btnCommenceWoods');
+    const btnInGameLobbyReturn = document.getElementById('btnInGameLobbyReturn');
+    const inputWandererName = document.getElementById('inputWandererName');
+    const inputRoomCode = document.getElementById('inputRoomCode');
+    const rosterContainer = document.getElementById('rosterContainer');
+    const slotPlayerCount = document.getElementById('slotPlayerCount');
+    const menuLayer = document.getElementById('menu-layer');
+    const descentOverlay = document.getElementById('descentOverlay');
+
+    const openModal = (id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.remove('hidden');
+        setTimeout(() => el.classList.remove('opacity-0'), 10);
+      }
+    };
+
+    const closeModal = (id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.add('opacity-0');
+        setTimeout(() => el.classList.add('hidden'), 300);
+      }
+    };
+
+    // PLAY opens the Lobby
+    btnPlayMain?.addEventListener('click', () => openModal('modalLobby'));
+    btnOpenCodex?.addEventListener('click', () => openModal('modalCodex'));
+    btnOpenSettings?.addEventListener('click', () => openModal('modalSettings'));
+
+    btnInGameLobbyReturn?.addEventListener('click', () => {
+      this.returnToLobby();
+    });
+
+    document.querySelectorAll('.modal-close').forEach(btn => {
+      btn.addEventListener('click', () => closeModal(btn.getAttribute('data-target')));
+    });
+
+    btnGenRoom?.addEventListener('click', () => {
+      const prefixes = ['WOODS', 'MIST', 'BRAMBLE', 'RAVEN', 'CURSE'];
+      const p = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const n = Math.floor(Math.random() * 89 + 10);
+      inputRoomCode.value = `${p}-${n}`;
+    });
+
+    btnJoinRoom?.addEventListener('click', () => {
+      const name = inputWandererName.value.trim() || 'Lost_Seeker';
+      const room = inputRoomCode.value.trim().toUpperCase() || 'WOODS-1';
+      this.socket.emit('joinRoom', { name, roomCode: room });
+    });
+
+    btnToggleReady?.addEventListener('click', () => {
+      this.socket.emit('toggleReady');
+    });
+
+    btnCommenceWoods?.addEventListener('click', () => {
+      this.socket.emit('startMatchRequest');
+    });
+
+    // Revamped Roster Card Rendering
+    this.socket.on('lobbyRosterUpdate', (data) => {
+      if (slotPlayerCount) slotPlayerCount.textContent = data.players.length;
+      if (rosterContainer) {
+        rosterContainer.innerHTML = '';
+        data.players.forEach((p, idx) => {
+          const isHost = (p.id === data.hostId);
+          const card = document.createElement('div');
+          card.className = "flex items-center justify-between p-3 bg-[#02090b] border border-teal-900/60 hover:border-teal-700/80 rounded-xl transition";
+          card.innerHTML = `
+            <div class="flex items-center space-x-3">
+              <span class="w-3 h-3 rounded-full ${p.ready ? 'bg-[#4fffe3] shadow-[0_0_10px_#4fffe3]' : 'bg-amber-400'}"></span>
+              <div>
+                <div class="flex items-center space-x-2">
+                  <span class="font-codex text-sm text-white font-bold">${p.name}</span>
+                  ${isHost ? '<span class="text-[9px] font-cinzel px-2 py-0.5 bg-teal-950 text-[#4fffe3] border border-teal-700/60 rounded uppercase font-bold">HOST</span>' : ''}
+                </div>
+                <span class="text-[10px] font-cinzel text-slate-500">CHAMBER SEAT 0${idx + 1}</span>
+              </div>
+            </div>
+            <span class="font-codex text-xs font-bold px-3 py-1 rounded-md ${p.ready ? 'bg-teal-950/80 text-[#4fffe3] border border-teal-800/80' : 'bg-amber-950/40 text-amber-400 border border-amber-900/40'}">
+              ${p.ready ? 'READY' : 'PREPARING'}
+            </span>
+          `;
+          rosterContainer.appendChild(card);
+        });
+      }
+    });
+
+    this.socket.on('matchStarted', () => {
+      closeModal('modalLobby');
+      descentOverlay?.classList.remove('opacity-0', 'pointer-events-none');
+
+      setTimeout(() => {
+        if (menuLayer) {
+          menuLayer.style.opacity = '0';
+          menuLayer.style.pointerEvents = 'none';
+        }
+        if (btnInGameLobbyReturn) {
+          btnInGameLobbyReturn.classList.remove('hidden');
+        }
+        descentOverlay?.classList.add('opacity-0', 'pointer-events-none');
+      }, 1400);
+    });
+
+    // Auto-join default room
+    this.socket.emit('joinRoom', { name: 'Lost_Seeker', roomCode: 'WOODS-1' });
+  }
+
   cycleSpectateTarget() {
-    // Collect all valid remote players who are currently alive and visible
     const candidates = this.otherPlayers.getChildren().filter(p => p.visible && p.isAlive !== false);
-    
     if (candidates.length === 0) return;
 
     this.spectateIndex = (this.spectateIndex + 1) % candidates.length;
@@ -128,37 +254,80 @@ class MainScene extends Phaser.Scene {
       this.obstacles.add(rect);
     };
 
-    addWall(1000, 10, 2000, 20);
-    addWall(1000, 1490, 2000, 20);
-    addWall(10, 750, 20, 1500);
-    addWall(1990, 750, 20, 1500);
+    // ==========================================
+    // 1. OUTER PERIMETER BOUNDARY WALLS (2000x1500)
+    // ==========================================
+    addWall(1000, 10, 2000, 20);    // North Exterior
+    addWall(1000, 1490, 2000, 20);  // South Exterior
+    addWall(10, 750, 20, 1500);     // West Exterior
+    addWall(1990, 750, 20, 1500);   // East Exterior
 
-    // West Wing Classroom A
-    addWall(550, 200, 20, 360);
-    addWall(550, 650, 20, 260);
-    addWall(240, 750, 440, 20);
+    // ==========================================
+    // 2. THE BIG CENTRAL ROOM (x: 600..1400, y: 450..1050)
+    // ==========================================
 
-    // West Wing Classroom B
-    addWall(550, 850, 20, 260);
-    addWall(550, 1300, 20, 360);
+    // --- NORTH WALL of Center Room (y = 450) with center door (x: 930..1070)
+    addWall(765, 450, 330, 20);
+    addWall(1235, 450, 330, 20);
 
-    // North Science Lab
-    addWall(750, 500, 380, 20);
-    addWall(1350, 500, 540, 20);
-    addWall(1100, 260, 20, 260);
+    // --- SOUTH WALL of Center Room (y = 1050) with center door (x: 930..1070)
+    addWall(765, 1050, 330, 20);
+    addWall(1235, 1050, 330, 20);
 
-    // South Storage Bay
-    addWall(750, 1000, 380, 20);
-    addWall(1350, 1000, 540, 20);
-    addWall(900, 1260, 20, 440);
+    // --- WEST WALL of Center Room (x = 600) with center door (y: 680..820)
+    addWall(600, 565, 20, 230);
+    addWall(600, 935, 20, 230);
 
-    // East Corridor
-    addWall(1550, 350, 20, 660);
-    addWall(1550, 1150, 20, 660);
+    // --- EAST WALL of Center Room (x = 1400) with door to Exit Room (y: 680..820)
+    addWall(1400, 565, 20, 230);
+    addWall(1400, 935, 20, 230);
 
-    // Cover Columns
-    addWall(850, 750, 60, 60, 0x4f4f5c);
-    addWall(1250, 750, 60, 60, 0x4f4f5c);
+    // ==========================================
+    // 3. SURROUNDING OUTER PARTITION WALLS (Dividing surrounding rooms)
+    // ==========================================
+
+    // --- NORTH BOUNDARY EXTENSION (y = 450 extending to outer borders)
+    // Door between NW Room & West Room (x: 230..370)
+    addWall(120, 450, 220, 20);
+    addWall(485, 450, 230, 20);
+
+    // Door between NE Room & East Exit Room (x: 1630..1770)
+    addWall(1515, 450, 230, 20);
+    addWall(1880, 450, 220, 20);
+
+    // --- SOUTH BOUNDARY EXTENSION (y = 1050 extending to outer borders)
+    // Door between SW Room & West Room (x: 230..370)
+    addWall(120, 1050, 220, 20);
+    addWall(485, 1050, 230, 20);
+
+    // Door between SE Room & East Exit Room (x: 1630..1770)
+    addWall(1515, 1050, 230, 20);
+    addWall(1880, 1050, 220, 20);
+
+    // --- VERTICAL CORRIDOR EXTENSIONS (Dividing North & South peripheral rooms)
+    // Door between NW Room & North Lab (y: 190..310)
+    addWall(600, 100, 20, 180);
+    addWall(600, 380, 20, 140);
+
+    // Door between North Lab & NE Room (y: 190..310)
+    addWall(1400, 100, 20, 180);
+    addWall(1400, 380, 20, 140);
+
+    // Door between SW Room & South Storage (y: 1190..1310)
+    addWall(600, 1120, 20, 140);
+    addWall(600, 1400, 20, 180);
+
+    // Door between South Storage & SE Room (y: 1190..1310)
+    addWall(1400, 1120, 20, 140);
+    addWall(1400, 1400, 20, 180);
+
+    // ==========================================
+    // 4. COVER COLUMNS IN THE BIG CENTRAL ROOM
+    // ==========================================
+    addWall(850, 650, 50, 50, 0x4f4f5c);
+    addWall(1150, 650, 50, 50, 0x4f4f5c);
+    addWall(850, 850, 50, 50, 0x4f4f5c);
+    addWall(1150, 850, 50, 50, 0x4f4f5c);
   }
 
   createFlashlightGraphic() {
@@ -176,7 +345,9 @@ class MainScene extends Phaser.Scene {
   }
 
   addOtherPlayer(playerInfo) {
-    const color = playerInfo.role === 'hunter' ? 0xe74c3c : (playerInfo.alive ? 0x3498db : 0x444444);
+    const isHunter = (playerInfo.role === 'hunter');
+    const color = isHunter ? 0xe74c3c : (playerInfo.alive ? 0x3498db : 0x444444);
+
     const other = this.add.rectangle(playerInfo.x, playerInfo.y, 36, 36, color).setDepth(5);
     other.playerId = playerInfo.id;
     other.playerRole = playerInfo.role;
@@ -204,14 +375,12 @@ class MainScene extends Phaser.Scene {
       return;
     }
 
-    // --- Spectator Mode ---
+    // Spectator Mode
     if (!this.isAlive || this.hasEscaped) {
       this.player.body.setVelocity(0);
-      
       this.darkness.clear();
       this.darkness.fill(0x050508, 0.15);
 
-      // Check space bar input reliably in update loop
       if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
         this.cycleSpectateTarget();
       }
@@ -221,7 +390,7 @@ class MainScene extends Phaser.Scene {
       return;
     }
 
-    // --- Active Survivor Channeling ---
+    // Survivor Channeling
     if (this.keycardSprite.visible && this.role === 'survivor') {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.keycardSprite.x, this.keycardSprite.y);
       const isMoving = this.player.body.velocity.length() > 5;
@@ -296,7 +465,7 @@ class MainScene extends Phaser.Scene {
     } else {
       this.darkness.fill(0x050508, 0.98);
       this.lightMask.setAngle(deg);
-      
+
       const screenX = this.player.x - this.cameras.main.scrollX;
       const screenY = this.player.y - this.cameras.main.scrollY;
       this.darkness.erase(this.lightMask, screenX, screenY);
