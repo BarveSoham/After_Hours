@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-
 export class UIManager {
   constructor(scene) {
     this.scene = scene;

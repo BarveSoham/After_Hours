@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-
 export class PlayerController {
   constructor(scene) {
     this.scene = scene;

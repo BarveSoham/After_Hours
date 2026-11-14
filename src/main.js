@@ -10,7 +10,7 @@ class MainScene extends Phaser.Scene {
   }
 
   create() {
-    this.socket = io('http://localhost:3000');
+    this.socket = io(); // Automatically connects to the host's tunnel
     this.otherPlayers = this.add.group();
     this.footprintsGroup = this.add.group();
 
@@ -25,7 +25,7 @@ class MainScene extends Phaser.Scene {
 
     this.isChanneling = false;
     this.channelProgress = 0;
-    this.channelDuration = 1250; // Updated channel duration to 1250ms
+    this.channelDuration = 1250; // 1.25s channel time
     this.canAttack = true;
     this.attackCooldownTimer = 0;
     this.attackCooldownDuration = 1200;
@@ -34,13 +34,13 @@ class MainScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, 2000, 1500);
     const floor = this.add.grid(1000, 750, 2000, 1500, 64, 64, 0x141419, 1, 0x1d1d24, 0.6).setDepth(-1);
 
-    // 2. Obstacles
+    // 2. Obstacles (Central Ring Layout)
     this.obstacles = this.physics.add.staticGroup();
     this.createFacilityWalls();
 
-    // 3. Exit Door
-    this.exitDoor = this.add.rectangle(1880, 750, 60, 120, 0x444444);
-    this.exitDoorText = this.add.text(1880, 750, 'EXIT\n[LOCKED]', {
+    // 3. Exit Door (East Chamber)
+    this.exitDoor = this.add.rectangle(1840, 750, 60, 120, 0x444444);
+    this.exitDoorText = this.add.text(1840, 750, 'EXIT\n[LOCKED]', {
       fontSize: '12px',
       fontFamily: 'monospace',
       align: 'center',
@@ -110,7 +110,6 @@ class MainScene extends Phaser.Scene {
       menuLayer.style.pointerEvents = 'auto';
     }
 
-    // Open the lobby modal immediately
     const modalLobby = document.getElementById('modalLobby');
     if (modalLobby) {
       modalLobby.classList.remove('hidden');
@@ -150,7 +149,6 @@ class MainScene extends Phaser.Scene {
       }
     };
 
-    // PLAY opens the Lobby
     btnPlayMain?.addEventListener('click', () => openModal('modalLobby'));
     btnOpenCodex?.addEventListener('click', () => openModal('modalCodex'));
     btnOpenSettings?.addEventListener('click', () => openModal('modalSettings'));
@@ -184,7 +182,6 @@ class MainScene extends Phaser.Scene {
       this.socket.emit('startMatchRequest');
     });
 
-    // Revamped Roster Card Rendering
     this.socket.on('lobbyRosterUpdate', (data) => {
       if (slotPlayerCount) slotPlayerCount.textContent = data.players.length;
       if (rosterContainer) {
@@ -229,7 +226,6 @@ class MainScene extends Phaser.Scene {
       }, 1400);
     });
 
-    // Auto-join default room
     this.socket.emit('joinRoom', { name: 'Lost_Seeker', roomCode: 'WOODS-1' });
   }
 
@@ -254,76 +250,41 @@ class MainScene extends Phaser.Scene {
       this.obstacles.add(rect);
     };
 
-    // ==========================================
-    // 1. OUTER PERIMETER BOUNDARY WALLS (2000x1500)
-    // ==========================================
-    addWall(1000, 10, 2000, 20);    // North Exterior
-    addWall(1000, 1490, 2000, 20);  // South Exterior
-    addWall(10, 750, 20, 1500);     // West Exterior
-    addWall(1990, 750, 20, 1500);   // East Exterior
+    // 1. OUTER PERIMETER BOUNDARY WALLS
+    addWall(1000, 10, 2000, 20);
+    addWall(1000, 1490, 2000, 20);
+    addWall(10, 750, 20, 1500);
+    addWall(1990, 750, 20, 1500);
 
-    // ==========================================
     // 2. THE BIG CENTRAL ROOM (x: 600..1400, y: 450..1050)
-    // ==========================================
-
-    // --- NORTH WALL of Center Room (y = 450) with center door (x: 930..1070)
     addWall(765, 450, 330, 20);
     addWall(1235, 450, 330, 20);
-
-    // --- SOUTH WALL of Center Room (y = 1050) with center door (x: 930..1070)
     addWall(765, 1050, 330, 20);
     addWall(1235, 1050, 330, 20);
-
-    // --- WEST WALL of Center Room (x = 600) with center door (y: 680..820)
     addWall(600, 565, 20, 230);
     addWall(600, 935, 20, 230);
-
-    // --- EAST WALL of Center Room (x = 1400) with door to Exit Room (y: 680..820)
     addWall(1400, 565, 20, 230);
     addWall(1400, 935, 20, 230);
 
-    // ==========================================
-    // 3. SURROUNDING OUTER PARTITION WALLS (Dividing surrounding rooms)
-    // ==========================================
-
-    // --- NORTH BOUNDARY EXTENSION (y = 450 extending to outer borders)
-    // Door between NW Room & West Room (x: 230..370)
+    // 3. SURROUNDING OUTER PARTITION WALLS
     addWall(120, 450, 220, 20);
     addWall(485, 450, 230, 20);
-
-    // Door between NE Room & East Exit Room (x: 1630..1770)
     addWall(1515, 450, 230, 20);
     addWall(1880, 450, 220, 20);
-
-    // --- SOUTH BOUNDARY EXTENSION (y = 1050 extending to outer borders)
-    // Door between SW Room & West Room (x: 230..370)
     addWall(120, 1050, 220, 20);
     addWall(485, 1050, 230, 20);
-
-    // Door between SE Room & East Exit Room (x: 1630..1770)
     addWall(1515, 1050, 230, 20);
     addWall(1880, 1050, 220, 20);
-
-    // --- VERTICAL CORRIDOR EXTENSIONS (Dividing North & South peripheral rooms)
-    // Door between NW Room & North Lab (y: 190..310)
     addWall(600, 100, 20, 180);
     addWall(600, 380, 20, 140);
-
-    // Door between North Lab & NE Room (y: 190..310)
     addWall(1400, 100, 20, 180);
     addWall(1400, 380, 20, 140);
-
-    // Door between SW Room & South Storage (y: 1190..1310)
     addWall(600, 1120, 20, 140);
     addWall(600, 1400, 20, 180);
-
-    // Door between South Storage & SE Room (y: 1190..1310)
     addWall(1400, 1120, 20, 140);
     addWall(1400, 1400, 20, 180);
 
-    // ==========================================
     // 4. COVER COLUMNS IN THE BIG CENTRAL ROOM
-    // ==========================================
     addWall(850, 650, 50, 50, 0x4f4f5c);
     addWall(1150, 650, 50, 50, 0x4f4f5c);
     addWall(850, 850, 50, 50, 0x4f4f5c);
@@ -347,7 +308,7 @@ class MainScene extends Phaser.Scene {
   addOtherPlayer(playerInfo) {
     const isHunter = (playerInfo.role === 'hunter');
     const color = isHunter ? 0xe74c3c : (playerInfo.alive ? 0x3498db : 0x444444);
-
+    
     const other = this.add.rectangle(playerInfo.x, playerInfo.y, 36, 36, color).setDepth(5);
     other.playerId = playerInfo.id;
     other.playerRole = playerInfo.role;
@@ -375,7 +336,6 @@ class MainScene extends Phaser.Scene {
       return;
     }
 
-    // Spectator Mode
     if (!this.isAlive || this.hasEscaped) {
       this.player.body.setVelocity(0);
       this.darkness.clear();
@@ -390,7 +350,6 @@ class MainScene extends Phaser.Scene {
       return;
     }
 
-    // Survivor Channeling
     if (this.keycardSprite.visible && this.role === 'survivor') {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.keycardSprite.x, this.keycardSprite.y);
       const isMoving = this.player.body.velocity.length() > 5;
@@ -433,7 +392,6 @@ class MainScene extends Phaser.Scene {
 
     this.playerController.update(dt, this.isChanneling);
 
-    // Escape check
     if (this.taskCompleted && !this.hasEscaped && this.role === 'survivor') {
       const distToDoor = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.exitDoor.x, this.exitDoor.y);
       if (distToDoor < 65) {
@@ -441,13 +399,11 @@ class MainScene extends Phaser.Scene {
       }
     }
 
-    // Aiming calculation
     const pointer = this.input.activePointer;
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldPoint.x, worldPoint.y);
     const deg = Phaser.Math.RadToDeg(angle);
 
-    // Network Sync
     if (this.player.oldPosition && (
       this.player.x !== this.player.oldPosition.x ||
       this.player.y !== this.player.oldPosition.y ||
@@ -458,14 +414,12 @@ class MainScene extends Phaser.Scene {
     }
     this.player.oldPosition = { x: this.player.x, y: this.player.y, angle: deg, isSprinting: this.playerController.isSprinting };
 
-    // Darkness & Flashlight
     this.darkness.clear();
     if (this.role === 'hunter') {
       this.darkness.fill(0x3a0007, 0.25);
     } else {
       this.darkness.fill(0x050508, 0.98);
       this.lightMask.setAngle(deg);
-
       const screenX = this.player.x - this.cameras.main.scrollX;
       const screenY = this.player.y - this.cameras.main.scrollY;
       this.darkness.erase(this.lightMask, screenX, screenY);

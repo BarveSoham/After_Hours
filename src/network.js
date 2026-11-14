@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 export class NetworkManager {
   constructor(scene) {
     this.scene = scene;
