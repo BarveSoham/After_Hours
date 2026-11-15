@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AFTER HOURS — Minimalist UI/UX</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Henny+Penny&family=IM+Fell+English:ital@0;1&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-abyss: #02050c;
+      --bg-deep: #071020;
+      --bg-mist: #162d4d;
+      --bg-slate: #244670;
+      --mist-mid: #4e7cab;
+      --mist-light: #8cb2d6;
+      --text-bone: #edf4fc;
+      --accent-teal: #8fb8e0;
+      --accent-crimson: #9e242e;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-abyss);
+      color: var(--text-bone);
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-eerie {
+      font-family: 'IM Fell English', 'Cormorant Garamond', serif;
+    }
+
+    .font-serif-clean {
+      font-family: 'Cormorant Garamond', serif;
+    }
+
+    .font-mono-clean {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .font-haunted {
+      font-family: 'Henny Penny', 'IM Fell English', cursive;
+      font-weight: 700;
+      -webkit-text-stroke: 2.5px #edf4fc;
+      paint-order: stroke fill;
+    }
+
+    /* High-Contrast Painterly & Engraved Glows */
+    .glow-mist {
+      text-shadow:
+        0 2px 10px rgba(2, 5, 12, 0.95),
+        0 0 18px rgba(237, 244, 252, 0.72),
+        0 0 42px rgba(140, 178, 214, 0.55);
+    }
+
+    .glow-teal {
+      text-shadow:
+        0 1px 6px rgba(2, 5, 12, 0.9),
+        0 0 14px rgba(143, 184, 224, 0.65);
+    }
+
+    .glow-crimson {
+      text-shadow:
+        0 2px 10px rgba(2, 5, 12, 0.95),
+        0 0 22px rgba(158, 36, 46, 0.85),
+        0 0 46px rgba(158, 36, 46, 0.45);
+    }
+
+    /* Floating Menu Links with Subtle Engraved Underline Accent */
+    .float-link {
+      position: relative;
+      color: rgba(237, 244, 252, 0.84);
+      text-shadow: 0 2px 8px rgba(2, 5, 12, 0.92);
+      transition: all 0.25s ease;
+      letter-spacing: 0.16em;
+    }
+
+    .float-link::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -4px;
+      width: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(237, 244, 252, 0.75), transparent);
+      transform: translateX(-50%);
+      transition: width 0.28s ease;
+    }
+
+    .float-link:hover,
+    .float-link:focus {
+      color: #ffffff;
+      text-shadow:
+        0 2px 10px rgba(2, 5, 12, 0.98),
+        0 0 16px rgba(237, 244, 252, 0.85),
+        0 0 32px rgba(140, 178, 214, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .float-link:hover::after,
+    .float-link:focus::after {
+      width: 85%;
+    }
+
+    /* Minimal Hairline Toggle */
+    .min-check {
+      width: 14px;
+      height: 14px;
+      border: 1px solid rgba(110, 148, 184, 0.42);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .min-check.active {
+      border-color: var(--accent-teal);
+      background-color: rgba(122, 163, 204, 0.22);
+      box-shadow: 0 0 10px rgba(122, 163, 204, 0.35);
+    }
+
+    .min-check.active::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background-color: var(--text-bone);
+    }
+
+    /* Subtle Fade Entrance */
+    @keyframes mistFadeIn {
+      from {
+        opacity: 0;
+        filter: blur(3px);
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        filter: blur(0);
+        transform: translateY(0);
+      }
+    }
+
+    .screen-fade {
+      animation: mistFadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Gentle Continuous Title Bobbing */
+    @keyframes titleBob {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    .title-bob {
+      animation: titleBob 4.2s ease-in-out infinite;
+      will-change: transform;
+    }
+
+    /* Custom Minimal Range Slider */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(110, 148, 184, 0.22);
+      height: 2px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-bone);
+      box-shadow: 0 0 8px rgba(220, 231, 245, 0.65);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="relative min-h-screen flex flex-col justify-between">
+
+  <!-- PAINTERLY DARK BLUE FOG & EERIE ARCHITECTURAL SILHOUETTES -->
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <!-- High-Contrast Midnight Navy & Moonlit Steel Blue Vertical Gradient -->
+    <div class="absolute inset-0" style="
+      background:
+        radial-gradient(ellipse at 50% 35%, rgba(84, 132, 184, 0.44) 0%, rgba(42, 82, 130, 0.42) 34%, rgba(10, 22, 42, 0.92) 72%, #02050c 100%),
+        linear-gradient(180deg, #060e1c 0%, #244670 43%, #162d4d 74%, #02050c 100%);
+    "></div>
+
+    <!-- Deep Outer Vignette for Strong Framing Contrast -->
+    <div class="absolute inset-0" style="
+      box-shadow: inset 0 0 160px rgba(2, 5, 12, 0.92);
+    "></div>
+
+    <!-- Brighter Diffused Moon / Streetlight Halo Behind Silhouettes -->
+    <div class="absolute top-[20%] left-[37%] w-52 h-52 rounded-full opacity-35 blur-2xl"
+      style="background: radial-gradient(circle, #edf4fc 0%, rgba(140, 178, 214, 0.35) 45%, transparent 72%);"></div>
+
+    <!-- Drifting Rain & Mist Canvas -->
+    <canvas id="atmosphere-canvas" class="absolute inset-0 w-full h-full opacity-65"></canvas>
+
+    <!-- Fog-Shrouded College Campus Silhouettes & Quad Props -->
+    <svg class="absolute bottom-0 left-0 w-full h-[70vh]" viewBox="0 0 1440 540" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="mistVeil" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#102038" stop-opacity="0" />
+          <stop offset="55%" stop-color="#091324" stop-opacity="0.58" />
+          <stop offset="100%" stop-color="#050a14" stop-opacity="0.98" />
+        </linearGradient>
+      </defs>
+
+      <!-- Distant Fog-Shrouded Campus Spires & Science Halls -->
+      <g fill="#0c1a2e" opacity="0.72">
+        <!-- Far Left Distant Chapel Spire -->
+        <polygon points="18,540 22,225 46,165 70,225 74,540" />
+        <rect x="44" y="142" width="4" height="26" />
+
+        <!-- Left-Center Distant Admin Annex -->
+        <polygon points="295,540 300,235 375,215 445,235 450,540" />
+        <polygon points="348,218 375,180 402,218" />
+
+        <!-- Right-Center Distant Quad Bell Turret -->
+        <polygon points="865,540 870,205 915,152 960,205 965,540" />
+        <rect x="913" y="128" width="4" height="28" />
+
+        <!-- Far Right Distant Greenhouse / Lecture Hall -->
+        <polygon points="1335,540 1340,220 1405,195 1440,210 1440,540" />
+      </g>
+
+      <!-- Midground Main College Campus Buildings (Rearranged Composition) -->
+      <g fill="#07101d" opacity="0.94">
+        <!-- 1. FAR LEFT: Collegiate Clock Tower -->
+        <g>
+          <!-- Main Brick/Stone Tower Shaft -->
+          <rect x="78" y="165" width="96" height="375" />
+          <!-- Stepped Belfry Tier -->
+          <rect x="88" y="118" width="76" height="47" />
+          <!-- Steep Gothic Pyramid Roof & Finial -->
+          <polygon points="82,118 126,48 170,118" />
+          <rect x="124" y="28" width="4" height="24" />
+          <!-- Glowing Clock Face -->
+          <circle cx="126" cy="144" r="16" fill="#102038" stroke="#6e94b8" stroke-width="1.5" opacity="0.85" />
+          <circle cx="126" cy="144" r="12" fill="#436b95" opacity="0.32" />
+          <line x1="126" y1="144" x2="126" y2="135" stroke="#dce7f5" stroke-width="1.4" opacity="0.7" />
+          <line x1="126" y1="144" x2="133" y2="147" stroke="#dce7f5" stroke-width="1.4" opacity="0.7" />
+          <!-- Tall Narrow Lancet Tower Windows -->
+          <path d="M104,215 A6,6 0 0,1 116,215 L116,265 L104,265 Z" fill="#436b95" opacity="0.28" />
+          <path d="M136,215 A6,6 0 0,1 148,215 L148,265 L136,265 Z" fill="#436b95" opacity="0.24" />
+          <path d="M120,305 A7,7 0 0,1 134,305 L134,355 L120,355 Z" fill="#436b95" opacity="0.22" />
+        </g>
+
+        <!-- 2. CENTER-LEFT / CENTER: Classical Academic Library Hall with Columns & Arched Windows -->
+        <g>
+          <!-- Main Library Wing -->
+          <rect x="420" y="245" width="410" height="295" />
+          <!-- Sloped Slate Roof & Roofline Balustrade -->
+          <polygon points="408,245 438,205 812,205 842,245" />
+          <!-- Central Classical Pediment Portico -->
+          <polygon points="545,235 625,182 705,235" />
+          <rect x="552" y="235" width="146" height="12" />
+          <!-- Portico Columns -->
+          <rect x="562" y="247" width="8" height="125" fill="#0c1a2e" />
+          <rect x="592" y="247" width="8" height="125" fill="#0c1a2e" />
+          <rect x="650" y="247" width="8" height="125" fill="#0c1a2e" />
+          <rect x="680" y="247" width="8" height="125" fill="#0c1a2e" />
+          <!-- Grand Arched Entrance Doorway -->
+          <path d="M611,310 A14,14 0 0,1 639,310 L639,372 L611,372 Z" fill="#436b95" opacity="0.25" />
+
+          <!-- Left Wing Tall Arched Library Reading Room Windows -->
+          <path d="M448,282 A11,11 0 0,1 470,282 L470,342 L448,342 Z" fill="#436b95" opacity="0.34" />
+          <path d="M494,282 A11,11 0 0,1 516,282 L516,342 L494,342 Z" fill="#436b95" opacity="0.28" />
+
+          <!-- Right Wing Tall Arched Library Reading Room Windows -->
+          <path d="M734,282 A11,11 0 0,1 756,282 L756,342 L734,342 Z" fill="#436b95" opacity="0.32" />
+          <path d="M780,282 A11,11 0 0,1 802,282 L802,342 L780,342 Z" fill="#436b95" opacity="0.26" />
+        </g>
+
+        <!-- 3. RIGHT: Dormitory & Observatory Wing with Domed Cupola & Rooftop Vents -->
+        <g>
+          <!-- Dormitory Main Block -->
+          <rect x="985" y="218" width="325" height="322" />
+          <!-- Mansard / Stepped Dormitory Roof -->
+          <polygon points="975,218 998,184 1296,184 1320,218" />
+          <!-- Rooftop Chimneys & Ventilation Stacks -->
+          <rect x="1022" y="156" width="14" height="30" />
+          <rect x="1019" y="152" width="20" height="5" />
+          <rect x="1258" y="158" width="16" height="28" />
+          <rect x="1255" y="154" width="22" height="5" />
+
+          <!-- Observatory Rotunda & Domed Cupola -->
+          <rect x="1102" y="146" width="92" height="40" />
+          <path d="M1102,146 A46,44 0 0,1 1194,146 Z" />
+          <!-- Telescope Slit & Finial -->
+          <path d="M1145,103 L1153,103 L1156,146 L1142,146 Z" fill="#102038" opacity="0.7" />
+          <rect x="1146" y="92" width="4" height="12" />
+
+          <!-- Dormitory Multi-Story Lit & Dark Windows -->
+          <rect x="1018" y="246" width="16" height="26" fill="#436b95" opacity="0.30" />
+          <rect x="1062" y="246" width="16" height="26" fill="#436b95" opacity="0.18" />
+          <rect x="1140" y="246" width="16" height="26" fill="#436b95" opacity="0.34" />
+          <rect x="1218" y="246" width="16" height="26" fill="#436b95" opacity="0.22" />
+          <rect x="1262" y="246" width="16" height="26" fill="#436b95" opacity="0.28" />
+
+          <rect x="1018" y="298" width="16" height="26" fill="#436b95" opacity="0.20" />
+          <rect x="1062" y="298" width="16" height="26" fill="#436b95" opacity="0.32" />
+          <rect x="1218" y="298" width="16" height="26" fill="#436b95" opacity="0.26" />
+          <rect x="1262" y="298" width="16" height="26" fill="#436b95" opacity="0.18" />
+        </g>
+      </g>
+
+      <!-- Foreground Quad Ground Plane, Oak Trees, Wrought-Iron Gates, Streetlamps, Bench, Books & Notice Board -->
+      <g fill="#040810">
+        <!-- Uneven Quad Lawn & Cobblestone Path -->
+        <path d="M0,540 L0,466 Q220,458 440,470 T880,464 T1240,472 L1440,462 L1440,540 Z" />
+
+        <!-- Bare Collegiate Oak Tree Silhouette (Left-Center Framing between Clock Tower & Library) -->
+        <g transform="translate(268, 466)">
+          <path d="M-7,0 L-4,-75 L-28,-115 L-24,-118 L-3,-82 L0,-132 L4,-86 L26,-122 L29,-118 L5,-76 L8,0 Z" />
+          <path d="M-16,-96 L-36,-110 L-34,-113 L-14,-99 Z" />
+          <path d="M15,-100 L35,-114 L37,-111 L17,-97 Z" />
+        </g>
+
+        <!-- Bare Collegiate Oak Tree Silhouette (Far Right Quad Edge) -->
+        <g transform="translate(1365, 464)">
+          <path d="M-8,0 L-5,-85 L-32,-128 L-28,-131 L-4,-92 L2,-142 L6,-90 L30,-124 L33,-120 L7,-82 L9,0 Z" />
+        </g>
+
+        <!-- Campus Wooden Notice Board (Near Clock Tower Path, Left) -->
+        <g transform="translate(195, 422)">
+          <rect x="4" y="0" width="3" height="48" />
+          <rect x="33" y="0" width="3" height="48" />
+          <rect x="0" y="4" width="40" height="24" />
+          <!-- Pinned Flyers -->
+          <rect x="5" y="8" width="8" height="10" fill="#436b95" opacity="0.45" />
+          <rect x="16" y="9" width="7" height="8" fill="#6e94b8" opacity="0.35" />
+          <rect x="26" y="7" width="9" height="11" fill="#436b95" opacity="0.4" />
+        </g>
+
+        <!-- Classic Campus Streetlamp Left -->
+        <rect x="342" y="384" width="4" height="86" />
+        <polygon points="334,384 350,384 347,368 337,368" />
+        <circle cx="344" cy="376" r="3.8" fill="#6e94b8" opacity="0.65" />
+
+        <!-- Wrought-Iron Quad Perimeter Fence & Open Gate (Center-Left) -->
+        <g transform="translate(465, 428)">
+          <rect x="0" y="0" width="4" height="44" />
+          <rect x="14" y="4" width="2.5" height="40" />
+          <rect x="28" y="4" width="2.5" height="40" />
+          <rect x="42" y="4" width="2.5" height="40" />
+          <rect x="56" y="0" width="4" height="44" />
+          <rect x="0" y="11" width="60" height="2.5" />
+          <rect x="0" y="32" width="60" height="2.5" />
+        </g>
+
+        <!-- Campus Park Bench with Stacked Books & Satchel (Center-Right in front of Library) -->
+        <g transform="translate(760, 438)">
+          <!-- Bench Backrest & Seat -->
+          <rect x="0" y="4" width="58" height="4" />
+          <rect x="0" y="12" width="58" height="4" />
+          <rect x="-2" y="20" width="62" height="3.5" />
+          <!-- Bench Legs -->
+          <rect x="4" y="4" width="3.5" height="28" />
+          <rect x="50" y="4" width="3.5" height="28" />
+          <!-- Stacked Textbooks & Satchel on Bench -->
+          <rect x="12" y="15" width="13" height="5" fill="#102038" />
+          <rect x="13" y="12" width="11" height="3" fill="#436b95" opacity="0.5" />
+          <path d="M34,13 L44,13 L46,20 L32,20 Z" fill="#0c1a2e" />
+        </g>
+
+        <!-- Classic Campus Streetlamp Right (Near Dormitory & Observatory) -->
+        <rect x="938" y="382" width="4" height="88" />
+        <polygon points="930,382 946,382 943,366 933,366" />
+        <circle cx="940" cy="374" r="3.8" fill="#6e94b8" opacity="0.6" />
+
+        <!-- Right Quad Wrought-Iron Railing -->
+        <g transform="translate(1065, 430)">
+          <rect x="0" y="0" width="4" height="42" />
+          <rect x="16" y="4" width="2.5" height="38" />
+          <rect x="32" y="4" width="2.5" height="38" />
+          <rect x="48" y="4" width="2.5" height="38" />
+          <rect x="64" y="0" width="4" height="42" />
+          <rect x="0" y="11" width="68" height="2.5" />
+          <rect x="0" y="30" width="68" height="2.5" />
+        </g>
+      </g>
+
+      <!-- Low Atmospheric Mist Layer -->
+      <rect x="0" y="260" width="1440" height="280" fill="url(#mistVeil)" />
+    </svg>
+
+    <!-- Subtle Crimson Edge Vignette (Only when Hunter is near in HUD) -->
+    <div id="danger-vignette" class="absolute inset-0 transition-opacity duration-700 opacity-0"
+      style="box-shadow: inset 0 0 140px rgba(143, 36, 44, 0.7);"></div>
+  </div>
+
+  <!-- MINIMAL TOP BAR (Only shows contextual back/menu link when inside sub-screens, zero clocks or clutter) -->
+  <header class="relative z-20 flex items-center justify-between px-6 sm:px-12 pt-6 min-h-[48px]">
+    <div id="topbar-left"></div>
+    <div id="topbar-right"></div>
+  </header>
+
+  <!-- MAIN VIEWPORT -->
+  <main id="app-viewport" class="relative z-10 flex-grow flex items-center justify-center px-6 sm:px-12 py-4">
+    <!-- Screens injected dynamically -->
+  </main>
+
+  <!-- MINIMAL FOOTER (Empty on Main Menu for pure image_0fe1b7.jpg cleanliness; subtle action prompts elsewhere) -->
+  <footer id="global-footer" class="relative z-20 flex items-center justify-center px-6 sm:px-12 pb-6 min-h-[44px] text-xs tracking-[0.2em] text-[#6e94b8]/70">
+  </footer>
+
+  <!-- MINIMAL OVERLAY MODAL (Join Code) -->
+  <div id="modal-backdrop" class="fixed inset-0 z-50 hidden items-center justify-center bg-[#050a14]/85 backdrop-blur-sm px-6">
+    <div id="modal-content" class="w-full max-w-sm text-center"></div>
+  </div>
+
+  <!-- SUBTLE FLOATING FEEDBACK -->
+  <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none"></div>
+
+  <script>
+    /* ============================================================================
+       MINIMAL APPLICATION STATE
+    ============================================================================ */
+    const state = {
+      screen: 'MENU', // 'MENU' | 'LOBBY' | 'LOADING' | 'HUD' | 'SETTINGS' | 'HOW_TO_PLAY'
+      lobby: {
+        roomCode: 'AFH-409',
+        players: [
+          { id: 1, name: 'You', isSelf: true, ready: true, role: null, alive: true },
+          { id: 2, name: 'Mirella', isSelf: false, ready: true, role: null, alive: true },
+          { id: 3, name: 'Vesper', isSelf: false, ready: true, role: null, alive: true },
+          { id: 4, name: 'Caleb', isSelf: false, ready: false, role: null, alive: true }
+        ],
+        extraNames: ['Soren', 'Isolde', 'Rowan', 'Evelyn']
+      },
+      match: {
+        assignedRole: 'SURVIVOR',
+        hudViewRole: 'SURVIVOR',
+        tasksCompleted: 2,
+        tasksTotal: 5,
+        hunterNear: false,
+        outcome: null
+      },
+      settings: {
+        audio: {
+          volume: 70
+        }
+      }
+    };
+
+    /* ============================================================================
+       SUBTLE WEB AUDIO FEEDBACK & UI HELPERS
+    ============================================================================ */
+    let audioCtx = null;
+
+    function playChime(type = 'hover') {
+      try {
+        const vol = (state.settings?.audio?.volume ?? 70) / 100;
+        if (vol <= 0) return;
+
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return;
+          audioCtx = new AudioContextClass();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        if (type === 'hunter') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(110, now);
+          osc.frequency.exponentialRampToValueAtTime(55, now + 0.45);
+          gain.gain.setValueAtTime(0.08 * vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.48);
+        } else if (type === 'select') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(420, now);
+          osc.frequency.exponentialRampToValueAtTime(560, now + 0.16);
+          gain.gain.setValueAtTime(0.06 * vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+        } else {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(360, now + 0.08);
+          gain.gain.setValueAtTime(0.03 * vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+        }
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      } catch (e) {
+        // Ignore audio autoplay blocks gracefully
+      }
+    }
+
+    function go(screenName) {
+      playChime('select');
+      state.screen = screenName;
+      const vignette = document.getElementById('danger-vignette');
+      if (vignette && screenName !== 'HUD') {
+        vignette.style.opacity = '0';
+      }
+      render();
+    }
+
+    function openModal(htmlContent) {
+      const backdrop = document.getElementById('modal-backdrop');
+      const content = document.getElementById('modal-content');
+      if (!backdrop || !content) return;
+      content.innerHTML = htmlContent;
+      backdrop.classList.remove('hidden');
+      backdrop.classList.add('flex');
+    }
+
+    function closeModal() {
+      const backdrop = document.getElementById('modal-backdrop');
+      if (!backdrop) return;
+      backdrop.classList.add('hidden');
+      backdrop.classList.remove('flex');
+    }
+
+    function showToast(message) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      container.innerHTML = `
+        <div class="screen-fade px-5 py-2 bg-[#091324]/85 border border-[#436b95]/35 text-xs tracking-[0.25em] uppercase text-[#dce7f5] glow-teal">
+          ${message}
+        </div>
+      `;
+      setTimeout(() => {
+        if (container) container.innerHTML = '';
+      }, 2000);
+    }
+
+    function render() {
+      const viewport = document.getElementById('app-viewport');
+      const topLeft = document.getElementById('topbar-left');
+      const topRight = document.getElementById('topbar-right');
+      const footer = document.getElementById('global-footer');
+
+      topLeft.innerHTML = '';
+      topRight.innerHTML = '';
+      footer.innerHTML = '';
+
+      if (state.screen === 'MENU') {
+        viewport.innerHTML = renderMainMenu();
+      } else if (state.screen === 'LOBBY') {
+        topLeft.innerHTML = `<button onclick="go('MENU')" class="float-link font-eerie text-base tracking-[0.16em]">Leave</button>`;
+        viewport.innerHTML = renderLobby();
+      } else if (state.screen === 'LOADING') {
+        viewport.innerHTML = renderLoadingAndRole();
+        runLoadingSequence();
+      } else if (state.screen === 'HUD') {
+        viewport.innerHTML = renderHUD();
+      } else if (state.screen === 'SETTINGS') {
+        topLeft.innerHTML = `<button onclick="go('MENU')" class="float-link font-eerie text-base tracking-[0.16em]">Back</button>`;
+        viewport.innerHTML = renderSettings();
+      } else if (state.screen === 'HOW_TO_PLAY') {
+        topLeft.innerHTML = `<button onclick="go('MENU')" class="float-link font-eerie text-base tracking-[0.16em]">Back</button>`;
+        viewport.innerHTML = renderHowToPlay();
+      }
+    }
+
+    /* ============================================================================
+       1. MAIN MENU (Directly inspired by image_0fe1b7.jpg: Floating Title + Raw Text)
+    ============================================================================ */
+    function renderMainMenu() {
+      return `
+        <div class="screen-fade flex flex-col items-center text-center my-auto pb-12">
+          <!-- Stacked Whimsical Gothic Ink-Splatter Title (Haunted Woods Style - Way Bigger & Bolder) -->
+          <div class="title-bob relative inline-flex flex-col items-center select-none mb-12" aria-label="AFTER HOURS">
+            <!-- Subtle Ink Splatter Dots Around Title -->
+            <span class="absolute -left-8 top-6 w-3 h-3 rounded-full bg-[#dce7f5] opacity-90 shadow-[0_0_12px_#dce7f5]"></span>
+            <span class="absolute -left-12 top-12 w-1.5 h-1.5 rounded-full bg-[#dce7f5] opacity-75"></span>
+            <span class="absolute -left-6 top-16 w-2 h-2 rounded-full bg-[#dce7f5] opacity-80"></span>
+            <span class="absolute -right-8 bottom-8 w-3 h-3 rounded-full bg-[#dce7f5] opacity-85 shadow-[0_0_12px_#dce7f5]"></span>
+            <span class="absolute -right-11 bottom-4 w-1.5 h-1.5 rounded-full bg-[#dce7f5] opacity-70"></span>
+            <span class="absolute right-4 -top-3 w-2 h-2 rounded-full bg-[#dce7f5] opacity-80"></span>
+
+            <h1 class="font-haunted font-extrabold text-[#edf4fc] glow-mist leading-[0.82] tracking-[0.02em] flex flex-col items-center">
+              <span class="block text-7xl sm:text-8xl md:text-[7.75rem] lg:text-[9rem] -rotate-2">
+                <span class="inline-block text-[1.15em] -translate-y-1">A</span>fter
+              </span>
+              <span class="block text-7xl sm:text-8xl md:text-[8.25rem] lg:text-[9.5rem] rotate-1 -mt-2 sm:-mt-3">
+                <span class="inline-block text-[1.14em]">H</span>our<span class="inline-block text-[1.18em] translate-y-1.5 -rotate-3">S</span>
+              </span>
+            </h1>
+          </div>
+
+          <nav class="flex flex-col items-center gap-5">
+            <button onmouseenter="playChime('hover')" onclick="createLobby()"
+              class="float-link group font-eerie text-2xl sm:text-[26px] tracking-[0.12em] inline-flex items-center gap-3">
+              <span class="opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">›</span>
+              <span>Create Lobby</span>
+              <span class="opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">‹</span>
+            </button>
+
+            <button onmouseenter="playChime('hover')" onclick="openJoinModal()"
+              class="float-link group font-eerie text-2xl sm:text-[26px] tracking-[0.12em] inline-flex items-center gap-3">
+              <span class="opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">›</span>
+              <span>Join Lobby</span>
+              <span class="opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">‹</span>
+            </button>
+
+            <button onmouseenter="playChime('hover')" onclick="go('HOW_TO_PLAY')"
+              class="float-link group font-eerie text-2xl sm:text-[26px] tracking-[0.12em] inline-flex items-center gap-3">
+              <span class="opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">›</span>
+              <span>How to Play</span>
+              <span class="opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">‹</span>
+            </button>
+
+            <button onmouseenter="playChime('hover')" onclick="go('SETTINGS')"
+              class="float-link group font-eerie text-2xl sm:text-[26px] tracking-[0.12em] inline-flex items-center gap-3">
+              <span class="opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">›</span>
+              <span>Settings</span>
+              <span class="opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">‹</span>
+            </button>
+
+            <button onmouseenter="playChime('hover')" onclick="openQuitModal()"
+              class="float-link group font-eerie text-2xl sm:text-[26px] tracking-[0.12em] inline-flex items-center gap-3">
+              <span class="opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">›</span>
+              <span>Quit</span>
+              <span class="opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">‹</span>
+            </button>
+          </nav>
+        </div>
+      `;
+    }
+
+    /* ============================================================================
+       1B. HOW TO PLAY SCREEN (Minimalist Rules Over Foggy Campus)
+    ============================================================================ */
+    function renderHowToPlay() {
+      const rules = [
+        {
+          num: 'I',
+          title: 'Lobby & Roles',
+          desc: '3–6 players enter the campus after curfew. Once the match begins, 1–2 players are randomly chosen in secret as Hunters while the rest become Survivors.'
+        },
+        {
+          num: 'II',
+          title: "Survivors' Goal",
+          desc: 'Explore the darkened quad, library, and halls to complete all assigned rituals quietly, then escape before time runs out or everyone is caught.'
+        },
+        {
+          num: 'III',
+          title: "Hunters' Goal",
+          desc: 'Patrol the campus shadows, track down lingering footsteps, and eliminate every Survivor before the final ritual is completed.'
+        },
+        {
+          num: 'IV',
+          title: 'Survival Tips',
+          desc: 'Listen closely for spatial footsteps and heartbeat cues, slip into deep architectural shadows to hide, and stick together or split tasks strategically.'
+        }
+      ];
+
+      return `
+        <div class="screen-fade w-full max-w-2xl flex flex-col items-center my-auto py-4">
+          <div class="text-center mb-8">
+            <div class="text-[10px] tracking-[0.32em] uppercase text-[#6e94b8]/80 mb-2">
+              Field Guide
+            </div>
+            <h2 class="font-eerie text-3xl sm:text-5xl tracking-[0.18em] uppercase text-[#dce7f5] glow-mist font-normal">
+              How to Play
+            </h2>
+          </div>
+
+          <div class="w-full grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-6 bg-[#091324]/45 backdrop-blur-[2px] px-6 sm:px-8 py-6 border-y border-[#436b95]/25 mb-9">
+            ${rules.map(r => `
+              <div class="flex flex-col text-left">
+                <div class="flex items-baseline gap-2.5 mb-1.5">
+                  <span class="font-mono-clean text-xs tracking-[0.2em] text-[#7aa3cc]">${r.num}.</span>
+                  <h3 class="font-eerie text-xl tracking-[0.12em] text-[#dce7f5] glow-teal">
+                    ${r.title}
+                  </h3>
+                </div>
+                <p class="font-serif-clean text-base sm:text-[17px] leading-relaxed tracking-[0.04em] text-[#dce7f5]/75">
+                  ${r.desc}
+                </p>
+              </div>
+            `).join('')}
+          </div>
+
+          <button onmouseenter="playChime('hover')" onclick="go('MENU')"
+            class="float-link group font-eerie text-2xl tracking-[0.14em] inline-flex items-center gap-3">
+            <span class="opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">›</span>
+            <span>Back</span>
+            <span class="opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">‹</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function createLobby() {
+      const code = Math.floor(100 + Math.random() * 900);
+      state.lobby.roomCode = `AFH-${code}`;
+      go('LOBBY');
+    }
+
+    function openJoinModal() {
+      playChime('select');
+      openModal(`
+        <div class="screen-fade flex flex-col items-center">
+          <div class="font-eerie text-2xl tracking-[0.14em] text-[#dce7f5] glow-mist mb-6">
+            Enter Room Code
+          </div>
+          <input id="room-code-field" type="text" maxlength="7" value="AFH-409"
+            class="w-48 bg-transparent border-b border-[#6e94b8]/55 focus:border-[#dce7f5] outline-none py-2 text-center font-mono-clean text-xl tracking-[0.25em] uppercase text-[#dce7f5] mb-8" />
+          <div class="flex items-center gap-10">
+            <button onmouseenter="playChime('hover')" onclick="confirmJoin()"
+              class="float-link font-eerie text-xl tracking-[0.14em]">
+              Join
+            </button>
+            <button onmouseenter="playChime('hover')" onclick="closeModal()"
+              class="float-link font-eerie text-xl tracking-[0.14em] opacity-70">
+              Back
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    function confirmJoin() {
+      const val = (document.getElementById('room-code-field')?.value || 'AFH-409').trim().toUpperCase();
+      if (val.length >= 3) state.lobby.roomCode = val;
+      closeModal();
+      go('LOBBY');
+    }
+
+    function openQuitModal() {
+      playChime('select');
+      openModal(`
+        <div class="screen-fade flex flex-col items-center">
+          <div class="font-eerie text-2xl tracking-[0.14em] text-[#dce7f5] glow-mist mb-6">
+            Leave the Fog?
+          </div>
+          <div class="flex items-center gap-10">
+            <button onmouseenter="playChime('hover')" onclick="closeModal()"
+              class="float-link font-eerie text-xl tracking-[0.14em]">
+              Stay
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    /* ============================================================================
+       2. ULTRA-MINIMAL LOBBY SCREEN (Only Room Code, Player Rows, Ready/Start)
+    ============================================================================ */
+    function renderLobby() {
+      const players = state.lobby.players;
+      const canStart = players.length >= 3 && players.length <= 6;
+      const self = players.find(p => p.isSelf);
+
+      // Render 6 clean minimalist rows without boxes or extra metadata
+      let rowsHTML = '';
+      for (let i = 0; i < 6; i++) {
+        const p = players[i];
+        if (p) {
+          rowsHTML += `
+            <div class="flex items-center justify-between py-2.5 border-b border-[#436b95]/22">
+              <div class="flex items-center gap-3.5">
+                <span class="w-1.5 h-1.5 rounded-full ${p.ready ? 'bg-[#7aa3cc] shadow-[0_0_8px_#7aa3cc]' : 'bg-[#436b95]/40'}"></span>
+                <span class="font-serif-clean text-lg tracking-[0.1em] text-[#dce7f5]">${p.name}</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <span class="text-xs tracking-[0.18em] uppercase ${p.ready ? 'text-[#6e94b8]' : 'text-[#436b95]/60'}">
+                  ${p.ready ? 'Ready' : 'Waiting'}
+                </span>
+                ${!p.isSelf ? `
+                  <button onclick="kickPlayer(${p.id})" class="text-xs text-[#436b95] hover:text-[#dce7f5] transition" title="Remove">
+                    ✕
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        } else {
+          rowsHTML += `
+            <div class="flex items-center justify-between py-2.5 border-b border-[#436b95]/12 opacity-35">
+              <div class="flex items-center gap-3.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#436b95]/30"></span>
+                <span class="font-serif-clean italic text-base tracking-[0.12em] text-[#6e94b8]">Empty</span>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      return `
+        <div class="screen-fade w-full max-w-md flex flex-col items-center my-auto pb-8">
+          <!-- Minimal Room Code Header -->
+          <button onclick="copyCode()" class="group flex flex-col items-center mb-8">
+            <span class="text-[10px] tracking-[0.3em] uppercase text-[#8cb2d6]/85 mb-1">Room Code</span>
+            <span class="font-mono-clean text-xl tracking-[0.28em] text-[#edf4fc] glow-teal group-hover:glow-mist transition">
+              ${state.lobby.roomCode}
+            </span>
+            <span class="w-24 h-[1px] mt-2 bg-gradient-to-r from-transparent via-[#8cb2d6]/50 to-transparent"></span>
+          </button>
+
+          <!-- Clean Player List (3–6 slots) -->
+          <div class="w-full mb-8">
+            ${rowsHTML}
+          </div>
+
+          <!-- Discrete Prototype Slot Adjuster -->
+          <div class="flex items-center gap-6 mb-9 text-xs tracking-[0.18em] uppercase text-[#6e94b8]/75">
+            <button onclick="addBot()" ${players.length >= 6 ? 'disabled' : ''}
+              class="hover:text-[#dce7f5] disabled:opacity-25 transition">
+              + Add Player
+            </button>
+            <span class="opacity-30">|</span>
+            <button onclick="removeLastBot()" ${players.length <= 1 ? 'disabled' : ''}
+              class="hover:text-[#dce7f5] disabled:opacity-25 transition">
+              - Remove
+            </button>
+          </div>
+
+          <!-- Floating Primary Actions -->
+          <div class="flex items-center gap-12">
+            <button onmouseenter="playChime('hover')" onclick="toggleReady()"
+              class="float-link font-eerie text-2xl tracking-[0.14em]">
+              ${self?.ready ? 'Unready' : 'Ready'}
+            </button>
+
+            <button onmouseenter="playChime('hover')" onclick="beginMatch()" ${!canStart ? 'disabled' : ''}
+              class="float-link font-eerie text-2xl tracking-[0.14em] ${canStart ? 'text-[#dce7f5] glow-mist' : 'opacity-25 pointer-events-none'}">
+              Start
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function copyCode() {
+      playChime('select');
+      if (navigator.clipboard) navigator.clipboard.writeText(state.lobby.roomCode).catch(() => {});
+      showToast('Code Copied');
+    }
+
+    function addBot() {
+      if (state.lobby.players.length >= 6) return;
+      playChime('hover');
+      const used = state.lobby.players.map(p => p.name);
+      const name = state.lobby.extraNames.find(n => !used.includes(n)) || `Shade ${state.lobby.players.length + 1}`;
+      state.lobby.players.push({ id: Date.now(), name, isSelf: false, ready: true, role: null, alive: true });
+      render();
+    }
+
+    function removeLastBot() {
+      if (state.lobby.players.length <= 1) return;
+      playChime('hover');
+      state.lobby.players.pop();
+      render();
+    }
+
+    function kickPlayer(id) {
+      playChime('hover');
+      state.lobby.players = state.lobby.players.filter(p => p.id !== id);
+      render();
+    }
+
+    function toggleReady() {
+      playChime('select');
+      const self = state.lobby.players.find(p => p.isSelf);
+      if (self) self.ready = !self.ready;
+      render();
+    }
+
+    /* ============================================================================
+       3. MINIMAL LOADING & ROLE REVEAL SCREEN
+    ============================================================================ */
+    function beginMatch() {
+      const players = state.lobby.players;
+      if (players.length < 3) return;
+
+      // Random assignment: 2 Hunters if 5-6 players, 1 Hunter if 3-4 players
+      const hunterCount = players.length >= 5 ? 2 : 1;
+      const order = players.map((_, i) => i).sort(() => Math.random() - 0.5);
+      const hunters = new Set(order.slice(0, hunterCount));
+
+      players.forEach((p, idx) => {
+        p.role = hunters.has(idx) ? 'HUNTER' : 'SURVIVOR';
+        p.alive = true;
+      });
+
+      const self = players.find(p => p.isSelf);
+      state.match.assignedRole = self.role;
+      state.match.hudViewRole = self.role;
+      state.match.tasksCompleted = 2;
+      state.match.hunterNear = false;
+      state.match.outcome = null;
+
+      go('LOADING');
+    }
+
+    function renderLoadingAndRole() {
+      const isHunter = state.match.assignedRole === 'HUNTER';
+
+      return `
+        <div class="screen-fade flex flex-col items-center justify-center text-center my-auto pb-10">
+          <!-- Phase 1: Vertical Glowing Line + Loading... -->
+          <div id="load-stage" class="flex flex-col items-center">
+            <div class="w-[1px] h-28 bg-[#436b95]/30 overflow-hidden mb-5">
+              <div id="load-line" class="w-full bg-[#dce7f5] shadow-[0_0_10px_#dce7f5] transition-all duration-1000" style="height: 10%;"></div>
+            </div>
+            <div class="font-eerie italic text-lg tracking-[0.18em] text-[#6e94b8]">
+              ... Loading ...
+            </div>
+          </div>
+
+          <!-- Phase 2: Pure Role Reveal -->
+          <div id="reveal-stage" class="hidden flex-col items-center">
+            <div class="text-xs tracking-[0.34em] uppercase text-[#8cb2d6] mb-3">
+              You Are
+            </div>
+            <h2 class="font-eerie text-5xl sm:text-7xl tracking-[0.22em] uppercase ${isHunter ? 'text-[#9e242e] glow-crimson' : 'text-[#edf4fc] glow-mist'} mb-3 font-normal">
+              ${isHunter ? 'Hunter' : 'Survivor'}
+            </h2>
+            <div class="w-36 h-[1px] mb-4 bg-gradient-to-r from-transparent ${isHunter ? 'via-[#9e242e]/70' : 'via-[#8cb2d6]/65'} to-transparent"></div>
+            <p class="font-serif-clean italic text-lg text-[#edf4fc]/85 tracking-wider mb-10">
+              ${isHunter ? 'Eliminate them before the rituals finish.' : 'Complete the rituals and survive.'}
+            </p>
+            <button onmouseenter="playChime('hover')" onclick="go('HUD')"
+              class="float-link font-eerie text-2xl tracking-[0.16em]">
+              Enter
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function runLoadingSequence() {
+      setTimeout(() => {
+        const line = document.getElementById('load-line');
+        if (line) line.style.height = '100%';
+      }, 80);
+
+      setTimeout(() => {
+        const loadStage = document.getElementById('load-stage');
+        const revealStage = document.getElementById('reveal-stage');
+        if (loadStage && revealStage) {
+          loadStage.classList.add('hidden');
+          revealStage.classList.remove('hidden');
+          revealStage.classList.add('flex', 'screen-fade');
+          playChime(state.match.assignedRole === 'HUNTER' ? 'hunter' : 'select');
+        }
+      }, 1050);
+    }
+
+    /* ============================================================================
+       4. BARE-MINIMUM IN-GAME HUD
+    ============================================================================ */
+    function renderHUD() {
+      const isHunter = state.match.hudViewRole === 'HUNTER';
+      const survivors = state.lobby.players.filter(p => p.role === 'SURVIVOR');
+      const aliveCount = survivors.filter(p => p.alive).length;
+
+      const vignette = document.getElementById('danger-vignette');
+      if (vignette) vignette.style.opacity = state.match.hunterNear && !isHunter ? '1' : '0';
+
+      // Task Dots (for Survivor) or Target Dots (for Hunter)
+      const dotsHTML = isHunter
+        ? survivors.map(s => `
+            <span class="w-2.5 h-2.5 rounded-full transition-all ${s.alive ? 'bg-[#8f242c] shadow-[0_0_8px_#8f242c]' : 'bg-[#436b95]/25'}"></span>
+          `).join('')
+        : Array.from({ length: state.match.tasksTotal }).map((_, idx) => `
+            <span class="w-2.5 h-2.5 rounded-full transition-all ${idx < state.match.tasksCompleted ? 'bg-[#dce7f5] shadow-[0_0_8px_#dce7f5]' : 'bg-[#436b95]/30'}"></span>
+          `).join('');
+
+      // Outcome Overlay
+      if (state.match.outcome) {
+        const winSurvivors = state.match.outcome === 'SURVIVORS_WIN';
+        return `
+          <div class="screen-fade flex flex-col items-center text-center my-auto pb-10">
+            <h2 class="font-eerie text-4xl sm:text-6xl tracking-[0.18em] ${winSurvivors ? 'text-[#dce7f5] glow-mist' : 'text-[#8f242c] glow-crimson'} mb-8 font-normal">
+              ${winSurvivors ? 'Survivors Escaped' : 'Hunters Prevailed'}
+            </h2>
+            <button onmouseenter="playChime('hover')" onclick="go('LOBBY')"
+              class="float-link font-eerie text-2xl tracking-[0.14em]">
+              Return to Lobby
+            </button>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="screen-fade w-full h-[78vh] flex flex-col justify-between">
+          <!-- Top Row: Minimal Dots Left, Role + Menu Right -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="text-xs tracking-[0.22em] uppercase text-[#6e94b8]">
+                ${isHunter ? `Targets (${aliveCount})` : `Tasks (${state.match.tasksCompleted}/${state.match.tasksTotal})`}
+              </span>
+              <div class="flex items-center gap-2">
+                ${dotsHTML}
+              </div>
+            </div>
+
+            <div class="flex items-center gap-6">
+              <span class="font-eerie text-lg tracking-[0.16em] ${isHunter ? 'text-[#8f242c]' : 'text-[#dce7f5]'}">
+                ${isHunter ? 'Hunter' : 'Survivor'}
+              </span>
+              <button onclick="go('LOBBY')" class="float-link font-eerie text-base tracking-[0.14em]">
+                Menu
+              </button>
+            </div>
+          </div>
+
+          <!-- Center Subtle Focal Dot -->
+          <div class="my-auto flex flex-col items-center pointer-events-none">
+            <div class="w-1 h-1 rounded-full bg-[#dce7f5]/40"></div>
+          </div>
+
+          <!-- Bottom Row: Single Contextual Prompt + Discrete Prototype Controls -->
+          <div class="flex flex-col items-center gap-5">
+            <div class="font-serif-clean text-base tracking-[0.2em] text-[#dce7f5]/85 glow-teal">
+              ${isHunter ? '[LMB] Strike' : state.match.hunterNear ? 'Hide — Footsteps Near' : '[E] Complete Task'}
+            </div>
+
+            <!-- Discrete Bottom Prototype Switcher -->
+            <div class="flex flex-wrap items-center justify-center gap-5 text-[11px] tracking-[0.18em] uppercase text-[#6e94b8]/65 pt-2 border-t border-[#436b95]/18">
+              <button onclick="toggleHudView()" class="hover:text-[#dce7f5] transition">
+                View: ${isHunter ? 'Hunter' : 'Survivor'}
+              </button>
+              <span>·</span>
+              <button onclick="advanceTask()" class="hover:text-[#dce7f5] transition">
+                + Task
+              </button>
+              <span>·</span>
+              <button onclick="toggleNear()" class="hover:text-[#dce7f5] transition">
+                ${state.match.hunterNear ? 'Clear Danger' : 'Hunter Near'}
+              </button>
+              <span>·</span>
+              <button onclick="eliminateOne()" class="hover:text-[#8f242c] transition">
+                Eliminate Target
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleHudView() {
+      playChime('hover');
+      state.match.hudViewRole = state.match.hudViewRole === 'SURVIVOR' ? 'HUNTER' : 'SURVIVOR';
+      render();
+    }
+
+    function advanceTask() {
+      playChime('select');
+      if (state.match.tasksCompleted < state.match.tasksTotal) {
+        state.match.tasksCompleted++;
+        if (state.match.tasksCompleted >= state.match.tasksTotal) {
+          state.match.outcome = 'SURVIVORS_WIN';
+        }
+        render();
+      }
+    }
+
+    function toggleNear() {
+      playChime('hover');
+      state.match.hunterNear = !state.match.hunterNear;
+      render();
+    }
+
+    function eliminateOne() {
+      playChime('hunter');
+      const survivors = state.lobby.players.filter(p => p.role === 'SURVIVOR' && p.alive);
+      if (survivors.length > 0) {
+        survivors[survivors.length - 1].alive = false;
+        if (survivors.length === 1) {
+          state.match.outcome = 'HUNTERS_WIN';
+        }
+        render();
+      }
+    }
+
+    /* ============================================================================
+       5. MINIMALIST BORDERLESS SETTINGS SCREEN (AUDIO ONLY)
+    ============================================================================ */
+    function renderSettings() {
+      const vol = state.settings.audio.volume;
+
+      return `
+        <div class="screen-fade w-full max-w-md flex flex-col items-center text-center my-auto pb-8">
+          <h2 class="font-eerie text-3xl sm:text-4xl tracking-[0.18em] text-[#dce7f5] glow-mist mb-10 font-normal">
+            Audio
+          </h2>
+
+          <div class="w-full px-2">
+            <div class="flex items-center justify-between text-xs tracking-[0.22em] uppercase text-[#dce7f5]/90 mb-5">
+              <span>Master Volume</span>
+              <span id="volume-value-label" class="font-mono-clean text-sm text-[#7aa3cc]">${vol}%</span>
+            </div>
+
+            <!-- Interactive Horizontal Line & Sliding Volume Dot -->
+            <div id="volume-track-container"
+              onmousedown="startVolumeDrag(event)"
+              ontouchstart="startVolumeDrag(event)"
+              class="relative w-full h-8 flex items-center cursor-pointer touch-none group">
+              <!-- Base Track Line -->
+              <div class="w-full h-[2px] bg-[#6e94b8]/25 relative">
+                <!-- Filled Active Line -->
+                <div id="volume-fill-line"
+                  class="h-full bg-[#dce7f5]/80 shadow-[0_0_8px_rgba(220,231,245,0.45)]"
+                  style="width: ${vol}%;"></div>
+              </div>
+
+              <!-- Circular Sliding Volume Dot -->
+              <div id="volume-slider-dot"
+                class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-[#dce7f5] shadow-[0_0_12px_rgba(220,231,245,0.85)] group-hover:scale-125 transition-transform duration-150 pointer-events-none"
+                style="left: ${vol}%;"></div>
+
+              <!-- Native Range Input for Keyboard Accessibility & Sync -->
+              <input id="volume-range-input" type="range" min="0" max="100" value="${vol}"
+                aria-label="Master Volume"
+                oninput="updateVolumeValue(this.value)"
+                class="sr-only" />
+            </div>
+          </div>
+
+          <div class="mt-14 flex items-center gap-12">
+            <button onmouseenter="playChime('hover')" onclick="saveAndExit()"
+              class="float-link font-eerie text-xl tracking-[0.14em] text-[#dce7f5]">
+              Save &amp; Close
+            </button>
+            <button onmouseenter="playChime('hover')" onclick="go('MENU')"
+              class="float-link font-eerie text-xl tracking-[0.14em] opacity-70">
+              Back
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    let isDraggingVolume = false;
+
+    function updateVolumeValue(val) {
+      const clamped = Math.max(0, Math.min(100, Math.round(Number(val))));
+      state.settings.audio.volume = clamped;
+
+      const label = document.getElementById('volume-value-label');
+      const fill = document.getElementById('volume-fill-line');
+      const dot = document.getElementById('volume-slider-dot');
+      const range = document.getElementById('volume-range-input');
+
+      if (label) label.textContent = `${clamped}%`;
+      if (fill) fill.style.width = `${clamped}%`;
+      if (dot) dot.style.left = `${clamped}%`;
+      if (range && Number(range.value) !== clamped) range.value = clamped;
+    }
+
+    function applyVolumeFromClientX(clientX) {
+      const track = document.getElementById('volume-track-container');
+      if (!track) return;
+      const rect = track.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const ratio = (clientX - rect.left) / rect.width;
+      updateVolumeValue(ratio * 100);
+    }
+
+    function startVolumeDrag(e) {
+      isDraggingVolume = true;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      applyVolumeFromClientX(clientX);
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingVolume) return;
+      applyVolumeFromClientX(e.clientX);
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isDraggingVolume || !e.touches.length) return;
+      applyVolumeFromClientX(e.touches[0].clientX);
+    }, { passive: true });
+
+    window.addEventListener('mouseup', () => {
+      if (isDraggingVolume) {
+        isDraggingVolume = false;
+        playChime('hover');
+      }
+    });
+
+    window.addEventListener('touchend', () => {
+      if (isDraggingVolume) {
+        isDraggingVolume = false;
+        playChime('hover');
+      }
+    });
+
+    function saveAndExit() {
+      playChime('select');
+      showToast('Settings Saved');
+      go('MENU');
+    }
+
+    /* ============================================================================
+       DRIFTING MIST & FINE RAIN ATMOSPHERE CANVAS
+    ============================================================================ */
+    function initAtmosphere() {
+      const canvas = document.getElementById('atmosphere-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w = canvas.width = window.innerWidth;
+      let h = canvas.height = window.innerHeight;
+
+      const drops = Array.from({ length: 55 }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        len: Math.random() * 14 + 6,
+        vy: Math.random() * 2.2 + 1.4,
+        vx: -0.35,
+        alpha: Math.random() * 0.18 + 0.05
+      }));
+
+      const fogWisps = Array.from({ length: 8 }, () => ({
+        x: Math.random() * w,
+        y: h * (0.45 + Math.random() * 0.45),
+        r: Math.random() * 220 + 140,
+        vx: (Math.random() - 0.5) * 0.25,
+        alpha: Math.random() * 0.06 + 0.02
+      }));
+
+      window.addEventListener('resize', () => {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+      });
+
+      function loop() {
+        ctx.clearRect(0, 0, w, h);
+
+        // Soft drifting midnight-blue mist clouds
+        for (const f of fogWisps) {
+          f.x += f.vx;
+          if (f.x < -f.r) f.x = w + f.r;
+          if (f.x > w + f.r) f.x = -f.r;
+
+          const grad = ctx.createRadialGradient(f.x, f.y, 10, f.x, f.y, f.r);
+          grad.addColorStop(0, `rgba(110, 148, 184, ${f.alpha})`);
+          grad.addColorStop(1, 'rgba(9, 19, 36, 0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Subtle cold blue-white drizzle strokes (like image_0fe1b7.jpg)
+        ctx.lineWidth = 1;
+        for (const d of drops) {
+          d.x += d.vx;
+          d.y += d.vy;
+          if (d.y > h) {
+            d.y = -20;
+            d.x = Math.random() * w;
+          }
+          ctx.strokeStyle = `rgba(175, 202, 232, ${d.alpha})`;
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y);
+          ctx.lineTo(d.x + d.vx * 3, d.y + d.len);
+          ctx.stroke();
+        }
+
+        requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('modal-backdrop');
+        if (!modal.classList.contains('hidden')) {
+          closeModal();
+          return;
+        }
+        if (state.screen !== 'MENU') go('MENU');
+      }
+    });
+
+    window.onload = function () {
+      initAtmosphere();
+      render();
+    };
+  </script>
+</body>
+</html>
