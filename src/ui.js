@@ -92,7 +92,8 @@ export class UIManager {
     this.btnBg = this.scene.add.rectangle(cx - 110, cy + 45, 190, 46, 0x27ae60)
       .setDepth(101)
       .setScrollFactor(0)
-      .setVisible(false);
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
 
     this.btnText = this.scene.add.text(cx - 110, cy + 45, 'PLAY AGAIN', {
       fontSize: '15px',
@@ -101,11 +102,24 @@ export class UIManager {
       color: '#ffffff'
     }).setOrigin(0.5).setDepth(102).setScrollFactor(0).setVisible(false);
 
+    this.btnBg.on('pointerover', () => {
+      if (this.isGameOverVisible) this.btnBg.setFillStyle(0x2ecc71);
+    });
+    this.btnBg.on('pointerout', () => {
+      if (this.isGameOverVisible) this.btnBg.setFillStyle(0x27ae60);
+    });
+    this.btnBg.on('pointerdown', () => {
+      if (!this.isGameOverVisible) return;
+      this.btnBg.setFillStyle(0x1e8449);
+      this.scene.socket.emit('requestRestart');
+    });
+
     // RETURN TO LOBBY BUTTON
     this.btnLobbyBg = this.scene.add.rectangle(cx + 110, cy + 45, 190, 46, 0x0c292b)
       .setDepth(101)
       .setScrollFactor(0)
-      .setVisible(false);
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
 
     this.btnLobbyText = this.scene.add.text(cx + 110, cy + 45, 'BACK TO LOBBY', {
       fontSize: '15px',
@@ -114,45 +128,16 @@ export class UIManager {
       color: '#4fffe3'
     }).setOrigin(0.5).setDepth(102).setScrollFactor(0).setVisible(false);
 
-    // Direct click listener
-    this.scene.input.on('pointerdown', (pointer) => {
-      if (!this.isGameOverVisible) return;
-
-      const px = pointer.x;
-      const py = pointer.y;
-
-      // Play Again Hitbox
-      if (px >= cx - 205 && px <= cx - 15 && py >= cy + 22 && py <= cy + 68) {
-        this.btnBg.setFillStyle(0x1e8449);
-        this.scene.socket.emit('requestRestart');
-      }
-
-      // Return to Lobby Hitbox
-      if (px >= cx + 15 && px <= cx + 205 && py >= cy + 22 && py <= cy + 68) {
-        this.btnLobbyBg.setFillStyle(0x16403d);
-        this.scene.returnToLobby();
-      }
+    this.btnLobbyBg.on('pointerover', () => {
+      if (this.isGameOverVisible) this.btnLobbyBg.setFillStyle(0x16403d);
     });
-
-    this.scene.input.on('pointermove', (pointer) => {
+    this.btnLobbyBg.on('pointerout', () => {
+      if (this.isGameOverVisible) this.btnLobbyBg.setFillStyle(0x0c292b);
+    });
+    this.btnLobbyBg.on('pointerdown', () => {
       if (!this.isGameOverVisible) return;
-
-      const px = pointer.x;
-      const py = pointer.y;
-
-      // Hover Play Again
-      if (px >= cx - 205 && px <= cx - 15 && py >= cy + 22 && py <= cy + 68) {
-        this.btnBg.setFillStyle(0x2ecc71);
-      } else {
-        this.btnBg.setFillStyle(0x27ae60);
-      }
-
-      // Hover Back to Lobby
-      if (px >= cx + 15 && px <= cx + 205 && py >= cy + 22 && py <= cy + 68) {
-        this.btnLobbyBg.setFillStyle(0x16403d);
-      } else {
-        this.btnLobbyBg.setFillStyle(0x0c292b);
-      }
+      this.btnLobbyBg.setFillStyle(0x081e20);
+      this.scene.returnToLobby();
     });
   }
 
