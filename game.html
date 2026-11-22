@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AFTER HOURS - Survival Horror</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Creepster&family=Henny+Penny&family=Cinzel:wght@600;800;900&family=IM+Fell+English:ital@0;1&family=Special+Elite&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --night-black: #020608;
+      --teal-mist: #16403d;
+      --cyan-wisp: #4fffe3;
+      --crimson-glow: #ff2a2a;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--night-black);
+      font-family: 'IM Fell English', serif;
+      color: #cbd5e1;
+    }
+
+    #game-container {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #050508;
+    }
+
+    canvas {
+      display: block;
+      margin: auto;
+    }
+
+    #menu-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+
+    .font-gothic-title {
+      font-family: 'Henny Penny', cursive;
+    }
+
+    .font-creepy {
+      font-family: 'Creepster', cursive;
+    }
+
+    .font-codex {
+      font-family: 'Special Elite', cursive;
+    }
+
+    .font-cinzel {
+      font-family: 'Cinzel', serif;
+    }
+
+    @keyframes eerieHover {
+
+      0%,
+      100% {
+        transform: translateY(0px) rotate(0deg) scale(1);
+      }
+
+      50% {
+        transform: translateY(-7px) rotate(-0.5deg) scale(1.015);
+      }
+    }
+
+    .animate-eerie-float {
+      animation: eerieHover 5.2s ease-in-out infinite;
+    }
+
+    .title-stroke {
+      color: #f7f3e8;
+      text-shadow:
+        -3px -3px 0 #020608, 3px -3px 0 #020608, -3px 3px 0 #020608, 3px 3px 0 #020608,
+        0 12px 25px rgba(0, 0, 0, 0.95), 0 0 35px rgba(79, 255, 227, 0.22);
+    }
+
+    @keyframes pulseCrimson {
+
+      0%,
+      100% {
+        opacity: 0.95;
+        text-shadow: 0 0 14px rgba(255, 42, 42, 0.7);
+      }
+
+      50% {
+        opacity: 0.55;
+        text-shadow: 0 0 5px rgba(255, 42, 42, 0.35);
+      }
+    }
+
+    .glow-crimson {
+      color: var(--crimson-glow);
+      animation: pulseCrimson 2.4s ease-in-out infinite;
+    }
+
+    .beast-eye {
+      animation: beastEyePulse 4.5s infinite;
+      transform-origin: center;
+    }
+
+    @keyframes beastEyePulse {
+
+      0%,
+      100% {
+        filter: drop-shadow(0 0 4px #ff3838);
+        opacity: 0.95;
+      }
+
+      40% {
+        filter: drop-shadow(0 0 10px #ff0000);
+        opacity: 1;
+      }
+
+      80% {
+        opacity: 0.2;
+      }
+
+      82% {
+        opacity: 0.95;
+      }
+    }
+
+    .menu-btn {
+      background: rgba(6, 21, 23, 0.85);
+      border: 1px solid rgba(79, 255, 227, 0.32);
+      color: #d6e2e2;
+      transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+      backdrop-filter: blur(4px);
+    }
+
+    .menu-btn:hover {
+      background: rgba(18, 54, 52, 0.95);
+      border-color: #4fffe3;
+      color: #ffffff;
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 0 20px rgba(79, 255, 227, 0.25);
+    }
+
+    .parchment-frame {
+      background: radial-gradient(circle at 50% 35%, #0e2b2e 0%, #061719 70%, #020708 100%);
+      border: 1px solid rgba(79, 255, 227, 0.35);
+      box-shadow: 0 0 60px rgba(0, 0, 0, 0.95), inset 0 0 25px rgba(2, 6, 8, 0.7);
+    }
+
+    .codex-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .codex-scroll::-webkit-scrollbar-track {
+      background: #040e10;
+    }
+
+    .codex-scroll::-webkit-scrollbar-thumb {
+      background: #1d4d4b;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+
+<body class="relative w-screen h-screen overflow-hidden bg-[#020608]">
+
+  <!-- PHASER GAME CANVAS CONTAINER -->
+  <div id="game-container"></div>
+
+  <!-- IN-GAME RETURN TO LOBBY BUTTON (TOP-RIGHT CORNER) -->
+  <button id="btnInGameLobbyReturn"
+    class="fixed top-5 right-6 z-40 hidden bg-[#030d0f]/80 hover:bg-[#0c292b] border border-teal-700/60 hover:border-[#4fffe3] text-xs font-cinzel text-slate-300 hover:text-white px-3.5 py-1.5 rounded-full transition shadow-lg backdrop-blur-md">
+    &larr; LOBBY
+  </button>
+
+  <!-- GOTHIC MAIN MENU OVERLAY -->
+  <div id="menu-layer" class="relative w-full h-full">
+
+    <div class="absolute inset-0 pointer-events-none z-0">
+      <div class="absolute inset-0 bg-gradient-to-b from-[#020709] via-[#092224] to-[#03090a]"></div>
+      <div
+        class="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_35%,rgba(36,106,98,0.38)_0%,rgba(6,21,23,0.7)_60%,transparent_100%)]">
+      </div>
+    </div>
+
+    <!-- Canvas Fog Spores -->
+    <canvas id="sporeCanvas" class="absolute inset-0 z-10 w-full h-full pointer-events-none"></canvas>
+
+    <!-- Horned Stalker Beast Silhouette -->
+    <div
+      class="absolute bottom-4 right-2 sm:right-6 md:right-12 z-25 pointer-events-none select-none w-48 sm:w-64 md:w-80 h-auto">
+      <svg viewBox="0 0 320 240" class="w-full h-auto drop-shadow-[0_0_20px_rgba(0,0,0,0.9)]">
+        <g fill="#010405">
+          <path
+            d="M90,200 C80,150 110,110 160,100 C200,90 230,120 250,150 C265,170 280,210 290,240 L60,240 C75,230 85,215 90,200 Z" />
+          <path d="M120,130 C90,125 60,140 40,165 C35,170 45,180 58,175 C70,170 95,175 115,185 Z" />
+          <path d="M100,130 C85,90 65,70 45,55 C42,52 46,48 52,53 C78,72 102,96 112,125 Z" fill="#000000" />
+          <path d="M115,125 C108,80 95,50 82,32 C80,28 85,26 90,30 C108,52 125,82 128,120 Z" fill="#000000" />
+        </g>
+        <ellipse cx="75" cy="154" rx="4.5" ry="3.2" fill="#ff2222" class="beast-eye" transform="rotate(-15 75 154)" />
+        <circle cx="74" cy="153.5" r="1.2" fill="#ffffff" />
+      </svg>
+    </div>
+
+    <!-- Header Controls -->
+    <header
+      class="absolute top-5 sm:top-7 left-0 right-0 z-40 px-6 sm:px-12 flex justify-between items-center pointer-events-auto">
+      <div
+        class="flex items-center space-x-2 text-[11px] uppercase tracking-[0.25em] text-[#4fffe3]/70 font-cinzel font-bold">
+        <span class="inline-block w-2 h-2 rounded-full bg-[#4fffe3] shadow-[0_0_8px_#4fffe3] animate-pulse"></span>
+        <span>SECTOR 04 // THE ARCHIVES</span>
+      </div>
+
+      <button id="btnAudioToggle"
+        class="flex items-center space-x-2 bg-[#030d0f]/80 hover:bg-[#0c292b] border border-[#4fffe3]/40 px-3.5 py-1.5 rounded-full text-xs font-cinzel tracking-wider text-[#d6e2e2] transition shadow-lg backdrop-blur-md">
+        <span id="audioIndicator" class="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+        <span id="audioLabel">AUDIO: MUTED</span>
+      </button>
+    </header>
+
+    <!-- Center Stage Menu -->
+    <main class="relative z-30 w-full h-full flex flex-col items-center justify-center p-4">
+      <div class="animate-eerie-float flex flex-col items-center text-center cursor-default select-none my-auto">
+
+        <div class="relative inline-block px-8 py-2">
+          <h1
+            class="font-gothic-title title-stroke text-6xl sm:text-7xl md:text-8xl lg:text-9xl tracking-tight leading-[0.88] m-0">
+            <span class="block transform -rotate-1">AFTER</span>
+            <span
+              class="block transform rotate-1 text-[#e9e4d8] text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] -mt-2 sm:-mt-4">HOURS</span>
+          </h1>
+        </div>
+
+        <!-- PLAY BUTTON (Replaces Commence Ritual, Enter The Woods removed) -->
+        <div class="mt-4 flex flex-col items-center">
+          <button id="btnPlayMain"
+            class="group flex items-center justify-center space-x-3 my-2 px-8 py-3 rounded-full border-2 border-red-600/80 bg-red-950/50 hover:bg-red-900/60 hover:border-red-400 transition transform hover:scale-105 active:scale-95 shadow-[0_0_25px_rgba(255,42,42,0.4)]">
+            <span class="font-cinzel text-sm sm:text-base font-black text-red-300 group-hover:text-white">&#9658;</span>
+            <span class="font-creepy glow-crimson text-3xl sm:text-4xl md:text-5xl tracking-widest pl-1">
+              PLAY
+            </span>
+          </button>
+          <p
+            class="font-codex text-[11px] sm:text-xs text-slate-400/90 max-w-md sm:max-w-lg px-4 tracking-wide leading-relaxed italic mt-2">
+            "The night does not pardon those who linger. Complete your solitary duties before the midnight iron gate
+            seals forever."
+          </p>
+        </div>
+
+        <!-- Secondary Modals -->
+        <div class="mt-6 flex flex-wrap gap-4 justify-center items-center">
+          <button id="btnOpenCodex"
+            class="menu-btn font-cinzel text-xs sm:text-sm font-bold tracking-[0.2em] px-6 py-2.5 rounded-full uppercase">
+            Survival Codex
+          </button>
+          <button id="btnOpenSettings"
+            class="menu-btn font-cinzel text-xs sm:text-sm font-bold tracking-[0.2em] px-6 py-2.5 rounded-full uppercase">
+            Settings
+          </button>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ================= REVAMPED MULTIPLAYER LOBBY MODAL ================= -->
+    <div id="modalLobby"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+      <div class="parchment-frame w-full max-w-2xl p-6 sm:p-8 rounded-2xl relative text-left">
+
+        <button
+          class="modal-close absolute top-4 right-5 text-slate-400 hover:text-[#4fffe3] text-2xl font-cinzel transition"
+          data-target="modalLobby">&times;</button>
+
+        <div class="border-b border-teal-900/60 pb-3 mb-5 flex justify-between items-end">
+          <div>
+            <span class="text-[10px] font-cinzel tracking-[0.3em] uppercase text-[#4fffe3]">Asymmetric Chamber</span>
+            <h2 class="font-gothic-title text-3xl sm:text-4xl text-[#f3efe6] tracking-wide mt-0.5">THE WANDERER'S PACT
+            </h2>
+          </div>
+          <div class="text-right hidden sm:block">
+            <span class="text-[10px] font-cinzel text-slate-400 block tracking-widest">RULESET</span>
+            <span class="text-xs font-codex text-[#4fffe3]">1 HUNTER vs SURVIVORS</span>
+          </div>
+        </div>
+
+        <!-- Inputs: Name and Room Cipher -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+          <div class="bg-[#030e10]/90 p-3 rounded-xl border border-teal-900/60">
+            <label class="block text-[10px] font-cinzel tracking-wider text-slate-400 uppercase mb-1">Your Alias</label>
+            <input id="inputWandererName" type="text" value="Lost_Seeker" maxlength="16"
+              class="w-full bg-[#020608] border border-teal-800 focus:border-[#4fffe3] text-sm text-[#f3efe6] font-codex px-3 py-2 rounded-lg outline-none transition">
+          </div>
+          <div class="bg-[#030e10]/90 p-3 rounded-xl border border-teal-900/60">
+            <label class="block text-[10px] font-cinzel tracking-wider text-slate-400 uppercase mb-1">Room
+              Cipher</label>
+            <div class="flex space-x-2">
+              <input id="inputRoomCode" type="text" value="WOODS-1" maxlength="8"
+                class="w-full text-center bg-[#020608] border border-teal-800 focus:border-[#4fffe3] text-sm text-[#4fffe3] font-codex font-bold tracking-widest px-2 py-2 rounded-lg outline-none uppercase transition">
+              <button id="btnGenRoom" title="Forge Cipher"
+                class="bg-[#0c292b] hover:bg-[#16403d] border border-teal-700/60 text-[#4fffe3] px-3 py-2 text-xs font-cinzel rounded-lg transition">FORGE</button>
+              <button id="btnJoinRoom"
+                class="bg-[#12423e] hover:bg-[#1b5e59] border border-[#4fffe3] text-[#4fffe3] px-3 py-2 text-xs font-cinzel font-bold rounded-lg transition">JOIN</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Soul Roster Cards -->
+        <div class="mb-5">
+          <div class="flex justify-between items-center text-xs font-cinzel text-slate-400 mb-2 px-1">
+            <span>SOULS ASSEMBLED (<span id="slotPlayerCount" class="text-white font-bold">1</span> / 4)</span>
+            <span class="text-[#4fffe3] text-[10px] tracking-wider">STATUS: CONNECTED</span>
+          </div>
+
+          <div id="rosterContainer" class="space-y-2 max-h-56 overflow-y-auto codex-scroll pr-1">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div
+          class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-teal-900/50 font-cinzel text-xs font-bold tracking-widest">
+          <button id="btnToggleReady"
+            class="flex-1 bg-[#092224] hover:bg-[#123638] border border-[#4fffe3]/50 text-[#4fffe3] py-3 px-4 rounded-xl uppercase transition">
+            Status: Marked Ready
+          </button>
+          <button id="btnCommenceWoods"
+            class="flex-1 bg-gradient-to-r from-teal-900 to-[#12423e] hover:from-[#16504a] hover:to-[#226860] border border-[#4fffe3] text-white py-3 px-4 rounded-xl uppercase transition shadow-[0_0_20px_rgba(79,255,227,0.3)]">
+            Commence Descent (Start)
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SURVIVAL CODEX -->
+    <div id="modalCodex"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+      <div class="parchment-frame w-full max-w-xl p-6 sm:p-8 rounded-2xl relative text-left">
+        <button
+          class="modal-close absolute top-4 right-5 text-slate-400 hover:text-[#4fffe3] text-2xl font-cinzel transition"
+          data-target="modalCodex">&times;</button>
+        <div class="border-b border-teal-900/60 pb-3 mb-4">
+          <span class="text-[10px] font-cinzel tracking-[0.3em] uppercase text-[#4fffe3]">Tome of Forbidden
+            Whispers</span>
+          <h2 class="font-gothic-title text-3xl sm:text-4xl text-[#f3efe6] tracking-wide mt-1">SURVIVAL CODEX</h2>
+        </div>
+        <div
+          class="codex-scroll max-h-72 overflow-y-auto space-y-3 pr-2 text-xs font-codex text-slate-300 leading-relaxed">
+          <div class="p-3 bg-[#030d0f] border-l-2 border-[#4fffe3] rounded-r">
+            <h4 class="font-cinzel font-bold text-sm text-[#4fffe3] mb-1">I. SECURITY BYPASS (HOLD E)</h4>
+            <p>Survivors must locate their assigned keycard terminal and hold [E] for 1.25s without moving. Moving
+              resets progress.</p>
+          </div>
+          <div class="p-3 bg-[#030d0f] border-l-2 border-red-500 rounded-r">
+            <h4 class="font-cinzel font-bold text-sm text-red-400 mb-1">II. THE HUNTER STALKER</h4>
+            <p>Sprint sparingly—running leaves cyan footprint trails visible only to the Hunter. When the vignette beats
+              red, hide behind pillars.</p>
+          </div>
+          <div class="p-3 bg-[#030d0f] border-l-2 border-amber-400 rounded-r">
+            <h4 class="font-cinzel font-bold text-sm text-amber-300 mb-1">III. ESCAPE GATES</h4>
+            <p>When the terminal is bypassed, make your way to the East gate to escape.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="modalSettings"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+      <div class="parchment-frame w-full max-w-md p-6 sm:p-8 rounded-2xl relative text-left font-cinzel">
+        <button
+          class="modal-close absolute top-4 right-5 text-slate-400 hover:text-[#4fffe3] text-2xl font-cinzel transition"
+          data-target="modalSettings">&times;</button>
+        <div class="border-b border-teal-900/60 pb-3 mb-5">
+          <span class="text-[10px] tracking-[0.3em] uppercase text-[#4fffe3]">Parameters</span>
+          <h2 class="font-gothic-title text-3xl text-[#f3efe6] tracking-wide mt-1">SETTINGS</h2>
+        </div>
+        <div class="space-y-4 text-xs">
+          <div class="flex items-center justify-between p-3 bg-[#030d0f] border border-teal-900/50 rounded-lg">
+            <span class="text-slate-300">FULLSCREEN VIEW</span>
+            <button id="btnToggleFullscreen"
+              class="px-3 py-1 bg-[#0c292b] hover:bg-[#16403d] text-[#4fffe3] text-[10px] rounded border border-teal-700/50 uppercase transition">Toggle</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Descent Transition -->
+    <div id="descentOverlay"
+      class="fixed inset-0 z-50 bg-[#020608] flex flex-col items-center justify-center text-center p-6 opacity-0 pointer-events-none transition-opacity duration-700">
+      <div class="w-14 h-14 border-4 border-[#4fffe3] border-t-transparent rounded-full animate-spin mb-6"></div>
+      <h2 class="font-gothic-title text-4xl sm:text-6xl text-[#f4efe4] tracking-widest mb-3">DESCENDING INTO THE
+        ARCHIVES...</h2>
+      <p class="font-codex text-sm text-[#4fffe3] max-w-md">Do not lose your way. The beast has caught your scent.</p>
+    </div>
+
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

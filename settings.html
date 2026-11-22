@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AFTER HOURS — Settings</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IM+Fell+English:ital@0;1&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-abyss: #02050c;
+      --bg-deep: #071020;
+      --bg-mist: #162d4d;
+      --bg-slate: #244670;
+      --mist-mid: #4e7cab;
+      --mist-light: #8cb2d6;
+      --text-bone: #edf4fc;
+      --accent-teal: #8fb8e0;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-abyss);
+      color: var(--text-bone);
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-eerie {
+      font-family: 'IM Fell English', 'Cormorant Garamond', serif;
+    }
+
+    .font-mono-clean {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .glow-mist {
+      text-shadow:
+        0 2px 10px rgba(2, 5, 12, 0.95),
+        0 0 18px rgba(237, 244, 252, 0.72),
+        0 0 42px rgba(140, 178, 214, 0.55);
+    }
+
+    .glow-teal {
+      text-shadow:
+        0 1px 6px rgba(2, 5, 12, 0.9),
+        0 0 14px rgba(143, 184, 224, 0.65);
+    }
+
+    .float-link {
+      position: relative;
+      color: rgba(237, 244, 252, 0.84);
+      text-shadow: 0 2px 8px rgba(2, 5, 12, 0.92);
+      transition: all 0.25s ease;
+      letter-spacing: 0.16em;
+    }
+
+    .float-link::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -4px;
+      width: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(237, 244, 252, 0.75), transparent);
+      transform: translateX(-50%);
+      transition: width 0.28s ease;
+    }
+
+    .float-link:hover,
+    .float-link:focus {
+      color: #ffffff;
+      text-shadow:
+        0 2px 10px rgba(2, 5, 12, 0.98),
+        0 0 16px rgba(237, 244, 252, 0.85),
+        0 0 32px rgba(140, 178, 214, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .float-link:hover::after,
+    .float-link:focus::after {
+      width: 85%;
+    }
+
+    @keyframes mistFadeIn {
+      from {
+        opacity: 0;
+        filter: blur(3px);
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        filter: blur(0);
+        transform: translateY(0);
+      }
+    }
+
+    .screen-fade {
+      animation: mistFadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="relative min-h-screen flex flex-col justify-between">
+
+  <!-- PAINTERLY DARK BLUE FOG & COLLEGE CAMPUS SILHOUETTES -->
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div class="absolute inset-0" style="
+      background:
+        radial-gradient(ellipse at 50% 35%, rgba(84, 132, 184, 0.44) 0%, rgba(42, 82, 130, 0.42) 34%, rgba(10, 22, 42, 0.92) 72%, #02050c 100%),
+        linear-gradient(180deg, #060e1c 0%, #244670 43%, #162d4d 74%, #02050c 100%);
+    "></div>
+
+    <div class="absolute inset-0" style="box-shadow: inset 0 0 160px rgba(2, 5, 12, 0.92);"></div>
+
+    <div class="absolute top-[20%] left-[37%] w-52 h-52 rounded-full opacity-35 blur-2xl"
+      style="background: radial-gradient(circle, #edf4fc 0%, rgba(140, 178, 214, 0.35) 45%, transparent 72%);"></div>
+
+    <canvas id="atmosphere-canvas" class="absolute inset-0 w-full h-full opacity-65"></canvas>
+
+    <!-- Fog-Shrouded College Campus Silhouettes -->
+    <svg class="absolute bottom-0 left-0 w-full h-[70vh]" viewBox="0 0 1440 540" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="mistVeil" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#102038" stop-opacity="0" />
+          <stop offset="55%" stop-color="#091324" stop-opacity="0.58" />
+          <stop offset="100%" stop-color="#050a14" stop-opacity="0.98" />
+        </linearGradient>
+      </defs>
+
+      <!-- Distant Spires -->
+      <g fill="#0c1a2e" opacity="0.72">
+        <polygon points="18,540 22,225 46,165 70,225 74,540" />
+        <rect x="44" y="142" width="4" height="26" />
+        <polygon points="295,540 300,235 375,215 445,235 450,540" />
+        <polygon points="348,218 375,180 402,218" />
+        <polygon points="865,540 870,205 915,152 960,205 965,540" />
+        <rect x="913" y="128" width="4" height="28" />
+        <polygon points="1335,540 1340,220 1405,195 1440,210 1440,540" />
+      </g>
+
+      <!-- Main Campus Buildings -->
+      <g fill="#07101d" opacity="0.94">
+        <g>
+          <rect x="78" y="165" width="96" height="375" />
+          <rect x="88" y="118" width="76" height="47" />
+          <polygon points="82,118 126,48 170,118" />
+          <rect x="124" y="28" width="4" height="24" />
+          <circle cx="126" cy="144" r="16" fill="#102038" stroke="#6e94b8" stroke-width="1.5" opacity="0.85" />
+          <circle cx="126" cy="144" r="12" fill="#436b95" opacity="0.32" />
+          <line x1="126" y1="144" x2="126" y2="135" stroke="#dce7f5" stroke-width="1.4" opacity="0.7" />
+          <line x1="126" y1="144" x2="133" y2="147" stroke="#dce7f5" stroke-width="1.4" opacity="0.7" />
+          <path d="M104,215 A6,6 0 0,1 116,215 L116,265 L104,265 Z" fill="#436b95" opacity="0.28" />
+          <path d="M136,215 A6,6 0 0,1 148,215 L148,265 L136,265 Z" fill="#436b95" opacity="0.24" />
+        </g>
+
+        <g>
+          <rect x="420" y="245" width="410" height="295" />
+          <polygon points="408,245 438,205 812,205 842,245" />
+          <polygon points="545,235 625,182 705,235" />
+          <rect x="552" y="235" width="146" height="12" />
+          <rect x="562" y="247" width="8" height="125" fill="#0c1a2e" />
+          <rect x="592" y="247" width="8" height="125" fill="#0c1a2e" />
+          <rect x="650" y="247" width="8" height="125" fill="#0c1a2e" />
+          <rect x="680" y="247" width="8" height="125" fill="#0c1a2e" />
+          <path d="M611,310 A14,14 0 0,1 639,310 L639,372 L611,372 Z" fill="#436b95" opacity="0.25" />
+          <path d="M448,282 A11,11 0 0,1 470,282 L470,342 L448,342 Z" fill="#436b95" opacity="0.34" />
+          <path d="M494,282 A11,11 0 0,1 516,282 L516,342 L494,342 Z" fill="#436b95" opacity="0.28" />
+          <path d="M734,282 A11,11 0 0,1 756,282 L756,342 L734,342 Z" fill="#436b95" opacity="0.32" />
+          <path d="M780,282 A11,11 0 0,1 802,282 L802,342 L780,342 Z" fill="#436b95" opacity="0.26" />
+        </g>
+
+        <g>
+          <rect x="985" y="218" width="325" height="322" />
+          <polygon points="975,218 998,184 1296,184 1320,218" />
+          <rect x="1022" y="156" width="14" height="30" />
+          <rect x="1019" y="152" width="20" height="5" />
+          <rect x="1258" y="158" width="16" height="28" />
+          <rect x="1255" y="154" width="22" height="5" />
+          <rect x="1102" y="146" width="92" height="40" />
+          <path d="M1102,146 A46,44 0 0,1 1194,146 Z" />
+          <path d="M1145,103 L1153,103 L1156,146 L1142,146 Z" fill="#102038" opacity="0.7" />
+          <rect x="1146" y="92" width="4" height="12" />
+          <rect x="1018" y="246" width="16" height="26" fill="#436b95" opacity="0.30" />
+          <rect x="1140" y="246" width="16" height="26" fill="#436b95" opacity="0.34" />
+          <rect x="1262" y="246" width="16" height="26" fill="#436b95" opacity="0.28" />
+        </g>
+      </g>
+
+      <g fill="#040810">
+        <path d="M0,540 L0,466 Q220,458 440,470 T880,464 T1240,472 L1440,462 L1440,540 Z" />
+        <g transform="translate(268, 466)">
+          <path d="M-7,0 L-4,-75 L-28,-115 L-24,-118 L-3,-82 L0,-132 L4,-86 L26,-122 L29,-118 L5,-76 L8,0 Z" />
+        </g>
+        <g transform="translate(1365, 464)">
+          <path d="M-8,0 L-5,-85 L-32,-128 L-28,-131 L-4,-92 L2,-142 L6,-90 L30,-124 L33,-120 L7,-82 L9,0 Z" />
+        </g>
+        <rect x="342" y="384" width="4" height="86" />
+        <polygon points="334,384 350,384 347,368 337,368" />
+        <circle cx="344" cy="376" r="3.8" fill="#6e94b8" opacity="0.65" />
+        <rect x="938" y="382" width="4" height="88" />
+        <polygon points="930,382 946,382 943,366 933,366" />
+        <circle cx="940" cy="374" r="3.8" fill="#6e94b8" opacity="0.6" />
+      </g>
+
+      <rect x="0" y="260" width="1440" height="280" fill="url(#mistVeil)" />
+    </svg>
+  </div>
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="relative z-20 flex items-center justify-between px-6 sm:px-12 pt-6 min-h-[48px]">
+    <a href="index.html" onmouseenter="playChime('hover')" onclick="playChime('select')"
+      class="float-link font-eerie text-xl sm:text-2xl tracking-[0.16em]">
+      Back
+    </a>
+    <div></div>
+  </header>
+
+  <!-- AUDIO-ONLY SETTINGS MAIN CONTENT -->
+  <main class="relative z-10 flex-grow flex items-center justify-center px-6 sm:px-12 py-4">
+    <div class="screen-fade w-full max-w-md flex flex-col items-center text-center my-auto pb-8">
+      <h1 class="font-eerie text-3xl sm:text-4xl tracking-[0.18em] text-[#dce7f5] glow-mist mb-10 font-normal">
+        Audio
+      </h1>
+
+      <div class="w-full px-2">
+        <div class="flex items-center justify-between text-xs tracking-[0.22em] uppercase text-[#dce7f5]/90 mb-5">
+          <span>Master Volume</span>
+          <span id="volume-value-label" class="font-mono-clean text-sm text-[#7aa3cc]">70%</span>
+        </div>
+
+        <!-- Interactive Horizontal Line & Sliding Volume Dot -->
+        <div id="volume-track-container"
+          onmousedown="startVolumeDrag(event)"
+          ontouchstart="startVolumeDrag(event)"
+          class="relative w-full h-8 flex items-center cursor-pointer touch-none group">
+          <!-- Base Track Line -->
+          <div class="w-full h-[2px] bg-[#6e94b8]/25 relative">
+            <!-- Filled Active Line -->
+            <div id="volume-fill-line"
+              class="h-full bg-[#dce7f5]/80 shadow-[0_0_8px_rgba(220,231,245,0.45)]"
+              style="width: 70%;"></div>
+          </div>
+
+          <!-- Circular Sliding Volume Dot -->
+          <div id="volume-slider-dot"
+            class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-[#dce7f5] shadow-[0_0_12px_rgba(220,231,245,0.85)] group-hover:scale-125 transition-transform duration-150 pointer-events-none"
+            style="left: 70%;"></div>
+
+          <!-- Accessible Range Input -->
+          <input id="volume-range-input" type="range" min="0" max="100" value="70"
+            aria-label="Master Volume"
+            oninput="updateVolumeValue(this.value)"
+            class="sr-only" />
+        </div>
+      </div>
+
+      <div class="mt-14 flex items-center gap-12">
+        <button onmouseenter="playChime('hover')" onclick="saveSettings()"
+          class="float-link font-eerie text-xl tracking-[0.14em] text-[#dce7f5]">
+          Save &amp; Close
+        </button>
+        <a href="index.html" onmouseenter="playChime('hover')" onclick="playChime('select')"
+          class="float-link font-eerie text-xl tracking-[0.14em] opacity-70">
+          Back
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="relative z-20 min-h-[44px]"></footer>
+
+  <!-- FLOATING FEEDBACK TOAST -->
+  <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none"></div>
+
+  <script>
+    let volume = Number(localStorage.getItem('afterHoursVolume') ?? 70);
+    let audioCtx = null;
+    let isDraggingVolume = false;
+
+    function playChime(type = 'hover') {
+      try {
+        const vol = volume / 100;
+        if (vol <= 0) return;
+
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return;
+          audioCtx = new AudioContextClass();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+
+        if (type === 'select') {
+          osc.frequency.setValueAtTime(420, now);
+          osc.frequency.exponentialRampToValueAtTime(560, now + 0.16);
+          gain.gain.setValueAtTime(0.06 * vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+        } else {
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(360, now + 0.08);
+          gain.gain.setValueAtTime(0.03 * vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+        }
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } catch (e) {}
+    }
+
+    function updateVolumeValue(val) {
+      volume = Math.max(0, Math.min(100, Math.round(Number(val))));
+
+      const label = document.getElementById('volume-value-label');
+      const fill = document.getElementById('volume-fill-line');
+      const dot = document.getElementById('volume-slider-dot');
+      const range = document.getElementById('volume-range-input');
+
+      if (label) label.textContent = `${volume}%`;
+      if (fill) fill.style.width = `${volume}%`;
+      if (dot) dot.style.left = `${volume}%`;
+      if (range && Number(range.value) !== volume) range.value = volume;
+    }
+
+    function applyVolumeFromClientX(clientX) {
+      const track = document.getElementById('volume-track-container');
+      if (!track) return;
+      const rect = track.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const ratio = (clientX - rect.left) / rect.width;
+      updateVolumeValue(ratio * 100);
+    }
+
+    function startVolumeDrag(e) {
+      isDraggingVolume = true;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      applyVolumeFromClientX(clientX);
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingVolume) return;
+      applyVolumeFromClientX(e.clientX);
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isDraggingVolume || !e.touches.length) return;
+      applyVolumeFromClientX(e.touches[0].clientX);
+    }, { passive: true });
+
+    window.addEventListener('mouseup', () => {
+      if (isDraggingVolume) {
+        isDraggingVolume = false;
+        playChime('hover');
+      }
+    });
+
+    window.addEventListener('touchend', () => {
+      if (isDraggingVolume) {
+        isDraggingVolume = false;
+        playChime('hover');
+      }
+    });
+
+    function saveSettings() {
+      localStorage.setItem('afterHoursVolume', String(volume));
+      playChime('select');
+      const container = document.getElementById('toast-container');
+      if (container) {
+        container.innerHTML = `
+          <div class="screen-fade px-5 py-2 bg-[#091324]/85 border border-[#436b95]/35 text-xs tracking-[0.25em] uppercase text-[#dce7f5] glow-teal">
+            Settings Saved
+          </div>
+        `;
+        setTimeout(() => { container.innerHTML = ''; }, 1800);
+      }
+    }
+
+    function initAtmosphere() {
+      const canvas = document.getElementById('atmosphere-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w = canvas.width = window.innerWidth;
+      let h = canvas.height = window.innerHeight;
+
+      const drops = Array.from({ length: 55 }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        len: Math.random() * 14 + 6,
+        vy: Math.random() * 2.2 + 1.4,
+        vx: -0.35,
+        alpha: Math.random() * 0.18 + 0.05
+      }));
+
+      const fogWisps = Array.from({ length: 8 }, () => ({
+        x: Math.random() * w,
+        y: h * (0.45 + Math.random() * 0.45),
+        r: Math.random() * 220 + 140,
+        vx: (Math.random() - 0.5) * 0.25,
+        alpha: Math.random() * 0.06 + 0.02
+      }));
+
+      window.addEventListener('resize', () => {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+      });
+
+      function loop() {
+        ctx.clearRect(0, 0, w, h);
+
+        for (const f of fogWisps) {
+          f.x += f.vx;
+          if (f.x < -f.r) f.x = w + f.r;
+          if (f.x > w + f.r) f.x = -f.r;
+
+          const grad = ctx.createRadialGradient(f.x, f.y, 10, f.x, f.y, f.r);
+          grad.addColorStop(0, `rgba(110, 148, 184, ${f.alpha})`);
+          grad.addColorStop(1, 'rgba(9, 19, 36, 0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.lineWidth = 1;
+        for (const d of drops) {
+          d.x += d.vx;
+          d.y += d.vy;
+          if (d.y > h) {
+            d.y = -20;
+            d.x = Math.random() * w;
+          }
+          ctx.strokeStyle = `rgba(175, 202, 232, ${d.alpha})`;
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y);
+          ctx.lineTo(d.x + d.vx * 3, d.y + d.len);
+          ctx.stroke();
+        }
+
+        requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+    window.onload = function () {
+      updateVolumeValue(volume);
+      initAtmosphere();
+    };
+  </script>
+</body>
+</html>

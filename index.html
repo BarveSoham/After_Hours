@@ -1,422 +1,735 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AFTER HOURS - Survival Horror</title>
+  <title>AFTER HOURS — Main Menu &amp; Lobbies</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Creepster&family=Henny+Penny&family=Cinzel:wght@600;800;900&family=IM+Fell+English:ital@0;1&family=Special+Elite&display=swap"
-    rel="stylesheet">
-
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Henny+Penny&family=IM+Fell+English:ital@0;1&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
   <style>
     :root {
-      --night-black: #020608;
-      --teal-mist: #16403d;
-      --cyan-wisp: #4fffe3;
-      --crimson-glow: #ff2a2a;
+      --bg-abyss: #02050c;
+      --bg-deep: #071020;
+      --bg-mist: #162d4d;
+      --bg-slate: #244670;
+      --mist-mid: #4e7cab;
+      --mist-light: #8cb2d6;
+      --text-bone: #edf4fc;
+      --accent-teal: #8fb8e0;
+      --accent-crimson: #9e242e;
     }
 
     * {
       box-sizing: border-box;
       user-select: none;
-      -webkit-user-select: none;
     }
 
-    html,
-    body {
+    body, html {
       margin: 0;
       padding: 0;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      background: var(--night-black);
-      font-family: 'IM Fell English', serif;
-      color: #cbd5e1;
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-abyss);
+      color: var(--text-bone);
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
     }
 
-    #game-container {
-      position: fixed;
-      inset: 0;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: #050508;
+    .font-eerie {
+      font-family: 'IM Fell English', 'Cormorant Garamond', serif;
     }
 
-    canvas {
-      display: block;
-      margin: auto;
+    .font-serif-clean {
+      font-family: 'Cormorant Garamond', serif;
     }
 
-    #menu-layer {
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-      transition: opacity 0.6s ease, visibility 0.6s ease;
+    .font-mono-clean {
+      font-family: 'JetBrains Mono', monospace;
     }
 
-    .font-gothic-title {
-      font-family: 'Henny Penny', cursive;
+    .font-haunted {
+      font-family: 'Henny Penny', 'IM Fell English', cursive;
+      font-weight: 700;
+      -webkit-text-stroke: 2.5px #edf4fc;
+      paint-order: stroke fill;
     }
 
-    .font-creepy {
-      font-family: 'Creepster', cursive;
-    }
-
-    .font-codex {
-      font-family: 'Special Elite', cursive;
-    }
-
-    .font-cinzel {
-      font-family: 'Cinzel', serif;
-    }
-
-    @keyframes eerieHover {
-
-      0%,
-      100% {
-        transform: translateY(0px) rotate(0deg) scale(1);
-      }
-
-      50% {
-        transform: translateY(-7px) rotate(-0.5deg) scale(1.015);
-      }
-    }
-
-    .animate-eerie-float {
-      animation: eerieHover 5.2s ease-in-out infinite;
-    }
-
-    .title-stroke {
-      color: #f7f3e8;
+    /* High-Contrast Painterly & Engraved Glows */
+    .glow-mist {
       text-shadow:
-        -3px -3px 0 #020608, 3px -3px 0 #020608, -3px 3px 0 #020608, 3px 3px 0 #020608,
-        0 12px 25px rgba(0, 0, 0, 0.95), 0 0 35px rgba(79, 255, 227, 0.22);
+        0 2px 10px rgba(2, 5, 12, 0.95),
+        0 0 18px rgba(237, 244, 252, 0.72),
+        0 0 42px rgba(140, 178, 214, 0.55);
     }
 
-    @keyframes pulseCrimson {
-
-      0%,
-      100% {
-        opacity: 0.95;
-        text-shadow: 0 0 14px rgba(255, 42, 42, 0.7);
-      }
-
-      50% {
-        opacity: 0.55;
-        text-shadow: 0 0 5px rgba(255, 42, 42, 0.35);
-      }
+    .glow-teal {
+      text-shadow:
+        0 1px 6px rgba(2, 5, 12, 0.9),
+        0 0 14px rgba(143, 184, 224, 0.65);
     }
 
     .glow-crimson {
-      color: var(--crimson-glow);
-      animation: pulseCrimson 2.4s ease-in-out infinite;
+      text-shadow:
+        0 2px 10px rgba(2, 5, 12, 0.95),
+        0 0 22px rgba(158, 36, 46, 0.85),
+        0 0 46px rgba(158, 36, 46, 0.45);
     }
 
-    .beast-eye {
-      animation: beastEyePulse 4.5s infinite;
-      transform-origin: center;
+    /* Floating Menu Links with Subtle Engraved Underline Accent */
+    .float-link {
+      position: relative;
+      color: rgba(237, 244, 252, 0.84);
+      text-shadow: 0 2px 8px rgba(2, 5, 12, 0.92);
+      transition: all 0.25s ease;
+      letter-spacing: 0.16em;
     }
 
-    @keyframes beastEyePulse {
-
-      0%,
-      100% {
-        filter: drop-shadow(0 0 4px #ff3838);
-        opacity: 0.95;
-      }
-
-      40% {
-        filter: drop-shadow(0 0 10px #ff0000);
-        opacity: 1;
-      }
-
-      80% {
-        opacity: 0.2;
-      }
-
-      82% {
-        opacity: 0.95;
-      }
+    .float-link::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -4px;
+      width: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(237, 244, 252, 0.75), transparent);
+      transform: translateX(-50%);
+      transition: width 0.28s ease;
     }
 
-    .menu-btn {
-      background: rgba(6, 21, 23, 0.85);
-      border: 1px solid rgba(79, 255, 227, 0.32);
-      color: #d6e2e2;
-      transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
-      backdrop-filter: blur(4px);
-    }
-
-    .menu-btn:hover {
-      background: rgba(18, 54, 52, 0.95);
-      border-color: #4fffe3;
+    .float-link:hover,
+    .float-link:focus {
       color: #ffffff;
-      transform: translateY(-2px) scale(1.03);
-      box-shadow: 0 0 20px rgba(79, 255, 227, 0.25);
+      text-shadow:
+        0 2px 10px rgba(2, 5, 12, 0.98),
+        0 0 16px rgba(237, 244, 252, 0.85),
+        0 0 32px rgba(140, 178, 214, 0.6);
+      transform: translateY(-1px);
     }
 
-    .parchment-frame {
-      background: radial-gradient(circle at 50% 35%, #0e2b2e 0%, #061719 70%, #020708 100%);
-      border: 1px solid rgba(79, 255, 227, 0.35);
-      box-shadow: 0 0 60px rgba(0, 0, 0, 0.95), inset 0 0 25px rgba(2, 6, 8, 0.7);
+    .float-link:hover::after,
+    .float-link:focus::after {
+      width: 85%;
     }
 
-    .codex-scroll::-webkit-scrollbar {
-      width: 6px;
+    /* Subtle Fade Entrance */
+    @keyframes mistFadeIn {
+      from {
+        opacity: 0;
+        filter: blur(3px);
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        filter: blur(0);
+        transform: translateY(0);
+      }
     }
 
-    .codex-scroll::-webkit-scrollbar-track {
-      background: #040e10;
+    .screen-fade {
+      animation: mistFadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
-    .codex-scroll::-webkit-scrollbar-thumb {
-      background: #1d4d4b;
-      border-radius: 3px;
+    /* Gentle Continuous Title Bobbing */
+    @keyframes titleBob {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    .title-bob {
+      animation: titleBob 4.2s ease-in-out infinite;
+      will-change: transform;
     }
   </style>
 </head>
+<body class="relative min-h-screen flex flex-col justify-between">
 
-<body class="relative w-screen h-screen overflow-hidden bg-[#020608]">
+  <!-- PAINTERLY DARK BLUE FOG & COLLEGE CAMPUS SILHOUETTES -->
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div class="absolute inset-0" style="
+      background:
+        radial-gradient(ellipse at 50% 35%, rgba(84, 132, 184, 0.44) 0%, rgba(42, 82, 130, 0.42) 34%, rgba(10, 22, 42, 0.92) 72%, #02050c 100%),
+        linear-gradient(180deg, #060e1c 0%, #244670 43%, #162d4d 74%, #02050c 100%);
+    "></div>
 
-  <!-- PHASER GAME CANVAS CONTAINER -->
-  <div id="game-container"></div>
+    <div class="absolute inset-0" style="box-shadow: inset 0 0 160px rgba(2, 5, 12, 0.92);"></div>
 
-  <!-- IN-GAME RETURN TO LOBBY BUTTON (TOP-RIGHT CORNER) -->
-  <button id="btnInGameLobbyReturn"
-    class="fixed top-5 right-6 z-40 hidden bg-[#030d0f]/80 hover:bg-[#0c292b] border border-teal-700/60 hover:border-[#4fffe3] text-xs font-cinzel text-slate-300 hover:text-white px-3.5 py-1.5 rounded-full transition shadow-lg backdrop-blur-md">
-    &larr; LOBBY
-  </button>
+    <div class="absolute top-[20%] left-[37%] w-52 h-52 rounded-full opacity-35 blur-2xl"
+      style="background: radial-gradient(circle, #edf4fc 0%, rgba(140, 178, 214, 0.35) 45%, transparent 72%);"></div>
 
-  <!-- GOTHIC MAIN MENU OVERLAY -->
-  <div id="menu-layer" class="relative w-full h-full">
+    <canvas id="atmosphere-canvas" class="absolute inset-0 w-full h-full opacity-65"></canvas>
 
-    <div class="absolute inset-0 pointer-events-none z-0">
-      <div class="absolute inset-0 bg-gradient-to-b from-[#020709] via-[#092224] to-[#03090a]"></div>
-      <div
-        class="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_35%,rgba(36,106,98,0.38)_0%,rgba(6,21,23,0.7)_60%,transparent_100%)]">
-      </div>
-    </div>
+    <!-- Fog-Shrouded College Campus Silhouettes -->
+    <svg class="absolute bottom-0 left-0 w-full h-[70vh]" viewBox="0 0 1440 540" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="mistVeil" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#102038" stop-opacity="0" />
+          <stop offset="55%" stop-color="#091324" stop-opacity="0.58" />
+          <stop offset="100%" stop-color="#050a14" stop-opacity="0.98" />
+        </linearGradient>
+      </defs>
 
-    <!-- Canvas Fog Spores -->
-    <canvas id="sporeCanvas" class="absolute inset-0 z-10 w-full h-full pointer-events-none"></canvas>
+      <!-- Distant Spires -->
+      <g fill="#0c1a2e" opacity="0.72">
+        <polygon points="18,540 22,225 46,165 70,225 74,540" />
+        <rect x="44" y="142" width="4" height="26" />
+        <polygon points="295,540 300,235 375,215 445,235 450,540" />
+        <polygon points="348,218 375,180 402,218" />
+        <polygon points="865,540 870,205 915,152 960,205 965,540" />
+        <rect x="913" y="128" width="4" height="28" />
+        <polygon points="1335,540 1340,220 1405,195 1440,210 1440,540" />
+      </g>
 
-    <!-- Horned Stalker Beast Silhouette -->
-    <div
-      class="absolute bottom-4 right-2 sm:right-6 md:right-12 z-25 pointer-events-none select-none w-48 sm:w-64 md:w-80 h-auto">
-      <svg viewBox="0 0 320 240" class="w-full h-auto drop-shadow-[0_0_20px_rgba(0,0,0,0.9)]">
-        <g fill="#010405">
-          <path
-            d="M90,200 C80,150 110,110 160,100 C200,90 230,120 250,150 C265,170 280,210 290,240 L60,240 C75,230 85,215 90,200 Z" />
-          <path d="M120,130 C90,125 60,140 40,165 C35,170 45,180 58,175 C70,170 95,175 115,185 Z" />
-          <path d="M100,130 C85,90 65,70 45,55 C42,52 46,48 52,53 C78,72 102,96 112,125 Z" fill="#000000" />
-          <path d="M115,125 C108,80 95,50 82,32 C80,28 85,26 90,30 C108,52 125,82 128,120 Z" fill="#000000" />
+      <!-- Main Campus Buildings -->
+      <g fill="#07101d" opacity="0.94">
+        <!-- Collegiate Clock Tower -->
+        <g>
+          <rect x="78" y="165" width="96" height="375" />
+          <rect x="88" y="118" width="76" height="47" />
+          <polygon points="82,118 126,48 170,118" />
+          <rect x="124" y="28" width="4" height="24" />
+          <circle cx="126" cy="144" r="16" fill="#102038" stroke="#6e94b8" stroke-width="1.5" opacity="0.85" />
+          <circle cx="126" cy="144" r="12" fill="#436b95" opacity="0.32" />
+          <line x1="126" y1="144" x2="126" y2="135" stroke="#dce7f5" stroke-width="1.4" opacity="0.7" />
+          <line x1="126" y1="144" x2="133" y2="147" stroke="#dce7f5" stroke-width="1.4" opacity="0.7" />
+          <path d="M104,215 A6,6 0 0,1 116,215 L116,265 L104,265 Z" fill="#436b95" opacity="0.28" />
+          <path d="M136,215 A6,6 0 0,1 148,215 L148,265 L136,265 Z" fill="#436b95" opacity="0.24" />
         </g>
-        <ellipse cx="75" cy="154" rx="4.5" ry="3.2" fill="#ff2222" class="beast-eye" transform="rotate(-15 75 154)" />
-        <circle cx="74" cy="153.5" r="1.2" fill="#ffffff" />
-      </svg>
-    </div>
 
-    <!-- Header Controls -->
-    <header
-      class="absolute top-5 sm:top-7 left-0 right-0 z-40 px-6 sm:px-12 flex justify-between items-center pointer-events-auto">
-      <div
-        class="flex items-center space-x-2 text-[11px] uppercase tracking-[0.25em] text-[#4fffe3]/70 font-cinzel font-bold">
-        <span class="inline-block w-2 h-2 rounded-full bg-[#4fffe3] shadow-[0_0_8px_#4fffe3] animate-pulse"></span>
-        <span>SECTOR 04 // THE ARCHIVES</span>
-      </div>
+        <!-- Classical Academic Library Hall -->
+        <g>
+          <rect x="420" y="245" width="410" height="295" />
+          <polygon points="408,245 438,205 812,205 842,245" />
+          <polygon points="545,235 625,182 705,235" />
+          <rect x="552" y="235" width="146" height="12" />
+          <rect x="562" y="247" width="8" height="125" fill="#0c1a2e" />
+          <rect x="592" y="247" width="8" height="125" fill="#0c1a2e" />
+          <rect x="650" y="247" width="8" height="125" fill="#0c1a2e" />
+          <rect x="680" y="247" width="8" height="125" fill="#0c1a2e" />
+          <path d="M611,310 A14,14 0 0,1 639,310 L639,372 L611,372 Z" fill="#436b95" opacity="0.25" />
+          <path d="M448,282 A11,11 0 0,1 470,282 L470,342 L448,342 Z" fill="#436b95" opacity="0.34" />
+          <path d="M494,282 A11,11 0 0,1 516,282 L516,342 L494,342 Z" fill="#436b95" opacity="0.28" />
+          <path d="M734,282 A11,11 0 0,1 756,282 L756,342 L734,342 Z" fill="#436b95" opacity="0.32" />
+          <path d="M780,282 A11,11 0 0,1 802,282 L802,342 L780,342 Z" fill="#436b95" opacity="0.26" />
+        </g>
 
-      <button id="btnAudioToggle"
-        class="flex items-center space-x-2 bg-[#030d0f]/80 hover:bg-[#0c292b] border border-[#4fffe3]/40 px-3.5 py-1.5 rounded-full text-xs font-cinzel tracking-wider text-[#d6e2e2] transition shadow-lg backdrop-blur-md">
-        <span id="audioIndicator" class="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-        <span id="audioLabel">AUDIO: MUTED</span>
-      </button>
-    </header>
+        <!-- Dormitory & Observatory Wing -->
+        <g>
+          <rect x="985" y="218" width="325" height="322" />
+          <polygon points="975,218 998,184 1296,184 1320,218" />
+          <rect x="1022" y="156" width="14" height="30" />
+          <rect x="1019" y="152" width="20" height="5" />
+          <rect x="1258" y="158" width="16" height="28" />
+          <rect x="1255" y="154" width="22" height="5" />
+          <rect x="1102" y="146" width="92" height="40" />
+          <path d="M1102,146 A46,44 0 0,1 1194,146 Z" />
+          <path d="M1145,103 L1153,103 L1156,146 L1142,146 Z" fill="#102038" opacity="0.7" />
+          <rect x="1146" y="92" width="4" height="12" />
+          <rect x="1018" y="246" width="16" height="26" fill="#436b95" opacity="0.30" />
+          <rect x="1140" y="246" width="16" height="26" fill="#436b95" opacity="0.34" />
+          <rect x="1262" y="246" width="16" height="26" fill="#436b95" opacity="0.28" />
+        </g>
+      </g>
 
-    <!-- Center Stage Menu -->
-    <main class="relative z-30 w-full h-full flex flex-col items-center justify-center p-4">
-      <div class="animate-eerie-float flex flex-col items-center text-center cursor-default select-none my-auto">
+      <!-- Foreground Quad Ground & Props -->
+      <g fill="#040810">
+        <path d="M0,540 L0,466 Q220,458 440,470 T880,464 T1240,472 L1440,462 L1440,540 Z" />
+        <g transform="translate(268, 466)">
+          <path d="M-7,0 L-4,-75 L-28,-115 L-24,-118 L-3,-82 L0,-132 L4,-86 L26,-122 L29,-118 L5,-76 L8,0 Z" />
+        </g>
+        <g transform="translate(1365, 464)">
+          <path d="M-8,0 L-5,-85 L-32,-128 L-28,-131 L-4,-92 L2,-142 L6,-90 L30,-124 L33,-120 L7,-82 L9,0 Z" />
+        </g>
+        <rect x="342" y="384" width="4" height="86" />
+        <polygon points="334,384 350,384 347,368 337,368" />
+        <circle cx="344" cy="376" r="3.8" fill="#6e94b8" opacity="0.65" />
+        <rect x="938" y="382" width="4" height="88" />
+        <polygon points="930,382 946,382 943,366 933,366" />
+        <circle cx="940" cy="374" r="3.8" fill="#6e94b8" opacity="0.6" />
+      </g>
 
-        <div class="relative inline-block px-8 py-2">
-          <h1
-            class="font-gothic-title title-stroke text-6xl sm:text-7xl md:text-8xl lg:text-9xl tracking-tight leading-[0.88] m-0">
-            <span class="block transform -rotate-1">AFTER</span>
-            <span
-              class="block transform rotate-1 text-[#e9e4d8] text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] -mt-2 sm:-mt-4">HOURS</span>
-          </h1>
-        </div>
-
-        <!-- PLAY BUTTON (Replaces Commence Ritual, Enter The Woods removed) -->
-        <div class="mt-4 flex flex-col items-center">
-          <button id="btnPlayMain"
-            class="group flex items-center justify-center space-x-3 my-2 px-8 py-3 rounded-full border-2 border-red-600/80 bg-red-950/50 hover:bg-red-900/60 hover:border-red-400 transition transform hover:scale-105 active:scale-95 shadow-[0_0_25px_rgba(255,42,42,0.4)]">
-            <span class="font-cinzel text-sm sm:text-base font-black text-red-300 group-hover:text-white">&#9658;</span>
-            <span class="font-creepy glow-crimson text-3xl sm:text-4xl md:text-5xl tracking-widest pl-1">
-              PLAY
-            </span>
-          </button>
-          <p
-            class="font-codex text-[11px] sm:text-xs text-slate-400/90 max-w-md sm:max-w-lg px-4 tracking-wide leading-relaxed italic mt-2">
-            "The night does not pardon those who linger. Complete your solitary duties before the midnight iron gate
-            seals forever."
-          </p>
-        </div>
-
-        <!-- Secondary Modals -->
-        <div class="mt-6 flex flex-wrap gap-4 justify-center items-center">
-          <button id="btnOpenCodex"
-            class="menu-btn font-cinzel text-xs sm:text-sm font-bold tracking-[0.2em] px-6 py-2.5 rounded-full uppercase">
-            Survival Codex
-          </button>
-          <button id="btnOpenSettings"
-            class="menu-btn font-cinzel text-xs sm:text-sm font-bold tracking-[0.2em] px-6 py-2.5 rounded-full uppercase">
-            Settings
-          </button>
-        </div>
-
-      </div>
-    </main>
-
-    <!-- ================= REVAMPED MULTIPLAYER LOBBY MODAL ================= -->
-    <div id="modalLobby"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
-      <div class="parchment-frame w-full max-w-2xl p-6 sm:p-8 rounded-2xl relative text-left">
-
-        <button
-          class="modal-close absolute top-4 right-5 text-slate-400 hover:text-[#4fffe3] text-2xl font-cinzel transition"
-          data-target="modalLobby">&times;</button>
-
-        <div class="border-b border-teal-900/60 pb-3 mb-5 flex justify-between items-end">
-          <div>
-            <span class="text-[10px] font-cinzel tracking-[0.3em] uppercase text-[#4fffe3]">Asymmetric Chamber</span>
-            <h2 class="font-gothic-title text-3xl sm:text-4xl text-[#f3efe6] tracking-wide mt-0.5">THE WANDERER'S PACT
-            </h2>
-          </div>
-          <div class="text-right hidden sm:block">
-            <span class="text-[10px] font-cinzel text-slate-400 block tracking-widest">RULESET</span>
-            <span class="text-xs font-codex text-[#4fffe3]">1 HUNTER vs SURVIVORS</span>
-          </div>
-        </div>
-
-        <!-- Inputs: Name and Room Cipher -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-          <div class="bg-[#030e10]/90 p-3 rounded-xl border border-teal-900/60">
-            <label class="block text-[10px] font-cinzel tracking-wider text-slate-400 uppercase mb-1">Your Alias</label>
-            <input id="inputWandererName" type="text" value="Lost_Seeker" maxlength="16"
-              class="w-full bg-[#020608] border border-teal-800 focus:border-[#4fffe3] text-sm text-[#f3efe6] font-codex px-3 py-2 rounded-lg outline-none transition">
-          </div>
-          <div class="bg-[#030e10]/90 p-3 rounded-xl border border-teal-900/60">
-            <label class="block text-[10px] font-cinzel tracking-wider text-slate-400 uppercase mb-1">Room
-              Cipher</label>
-            <div class="flex space-x-2">
-              <input id="inputRoomCode" type="text" value="WOODS-1" maxlength="8"
-                class="w-full text-center bg-[#020608] border border-teal-800 focus:border-[#4fffe3] text-sm text-[#4fffe3] font-codex font-bold tracking-widest px-2 py-2 rounded-lg outline-none uppercase transition">
-              <button id="btnGenRoom" title="Forge Cipher"
-                class="bg-[#0c292b] hover:bg-[#16403d] border border-teal-700/60 text-[#4fffe3] px-3 py-2 text-xs font-cinzel rounded-lg transition">FORGE</button>
-              <button id="btnJoinRoom"
-                class="bg-[#12423e] hover:bg-[#1b5e59] border border-[#4fffe3] text-[#4fffe3] px-3 py-2 text-xs font-cinzel font-bold rounded-lg transition">JOIN</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Soul Roster Cards -->
-        <div class="mb-5">
-          <div class="flex justify-between items-center text-xs font-cinzel text-slate-400 mb-2 px-1">
-            <span>SOULS ASSEMBLED (<span id="slotPlayerCount" class="text-white font-bold">1</span> / 4)</span>
-            <span class="text-[#4fffe3] text-[10px] tracking-wider">STATUS: CONNECTED</span>
-          </div>
-
-          <div id="rosterContainer" class="space-y-2 max-h-56 overflow-y-auto codex-scroll pr-1">
-            <!-- Dynamically populated -->
-          </div>
-        </div>
-
-        <!-- Action Controls -->
-        <div
-          class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-teal-900/50 font-cinzel text-xs font-bold tracking-widest">
-          <button id="btnToggleReady"
-            class="flex-1 bg-[#092224] hover:bg-[#123638] border border-[#4fffe3]/50 text-[#4fffe3] py-3 px-4 rounded-xl uppercase transition">
-            Status: Marked Ready
-          </button>
-          <button id="btnCommenceWoods"
-            class="flex-1 bg-gradient-to-r from-teal-900 to-[#12423e] hover:from-[#16504a] hover:to-[#226860] border border-[#4fffe3] text-white py-3 px-4 rounded-xl uppercase transition shadow-[0_0_20px_rgba(79,255,227,0.3)]">
-            Commence Descent (Start)
-          </button>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- SURVIVAL CODEX -->
-    <div id="modalCodex"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
-      <div class="parchment-frame w-full max-w-xl p-6 sm:p-8 rounded-2xl relative text-left">
-        <button
-          class="modal-close absolute top-4 right-5 text-slate-400 hover:text-[#4fffe3] text-2xl font-cinzel transition"
-          data-target="modalCodex">&times;</button>
-        <div class="border-b border-teal-900/60 pb-3 mb-4">
-          <span class="text-[10px] font-cinzel tracking-[0.3em] uppercase text-[#4fffe3]">Tome of Forbidden
-            Whispers</span>
-          <h2 class="font-gothic-title text-3xl sm:text-4xl text-[#f3efe6] tracking-wide mt-1">SURVIVAL CODEX</h2>
-        </div>
-        <div
-          class="codex-scroll max-h-72 overflow-y-auto space-y-3 pr-2 text-xs font-codex text-slate-300 leading-relaxed">
-          <div class="p-3 bg-[#030d0f] border-l-2 border-[#4fffe3] rounded-r">
-            <h4 class="font-cinzel font-bold text-sm text-[#4fffe3] mb-1">I. SECURITY BYPASS (HOLD E)</h4>
-            <p>Survivors must locate their assigned keycard terminal and hold [E] for 1.25s without moving. Moving
-              resets progress.</p>
-          </div>
-          <div class="p-3 bg-[#030d0f] border-l-2 border-red-500 rounded-r">
-            <h4 class="font-cinzel font-bold text-sm text-red-400 mb-1">II. THE HUNTER STALKER</h4>
-            <p>Sprint sparingly—running leaves cyan footprint trails visible only to the Hunter. When the vignette beats
-              red, hide behind pillars.</p>
-          </div>
-          <div class="p-3 bg-[#030d0f] border-l-2 border-amber-400 rounded-r">
-            <h4 class="font-cinzel font-bold text-sm text-amber-300 mb-1">III. ESCAPE GATES</h4>
-            <p>When the terminal is bypassed, make your way to the East gate to escape.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SETTINGS -->
-    <div id="modalSettings"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
-      <div class="parchment-frame w-full max-w-md p-6 sm:p-8 rounded-2xl relative text-left font-cinzel">
-        <button
-          class="modal-close absolute top-4 right-5 text-slate-400 hover:text-[#4fffe3] text-2xl font-cinzel transition"
-          data-target="modalSettings">&times;</button>
-        <div class="border-b border-teal-900/60 pb-3 mb-5">
-          <span class="text-[10px] tracking-[0.3em] uppercase text-[#4fffe3]">Parameters</span>
-          <h2 class="font-gothic-title text-3xl text-[#f3efe6] tracking-wide mt-1">SETTINGS</h2>
-        </div>
-        <div class="space-y-4 text-xs">
-          <div class="flex items-center justify-between p-3 bg-[#030d0f] border border-teal-900/50 rounded-lg">
-            <span class="text-slate-300">FULLSCREEN VIEW</span>
-            <button id="btnToggleFullscreen"
-              class="px-3 py-1 bg-[#0c292b] hover:bg-[#16403d] text-[#4fffe3] text-[10px] rounded border border-teal-700/50 uppercase transition">Toggle</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Descent Transition -->
-    <div id="descentOverlay"
-      class="fixed inset-0 z-50 bg-[#020608] flex flex-col items-center justify-center text-center p-6 opacity-0 pointer-events-none transition-opacity duration-700">
-      <div class="w-14 h-14 border-4 border-[#4fffe3] border-t-transparent rounded-full animate-spin mb-6"></div>
-      <h2 class="font-gothic-title text-4xl sm:text-6xl text-[#f4efe4] tracking-widest mb-3">DESCENDING INTO THE
-        ARCHIVES...</h2>
-      <p class="font-codex text-sm text-[#4fffe3] max-w-md">Do not lose your way. The beast has caught your scent.</p>
-    </div>
-
+      <rect x="0" y="260" width="1440" height="280" fill="url(#mistVeil)" />
+    </svg>
   </div>
 
-  <script type="module" src="/src/main.js"></script>
-</body>
+  <!-- MINIMAL TOP BAR -->
+  <header class="relative z-20 flex items-center justify-between px-6 sm:px-12 pt-6 min-h-[48px]">
+    <div id="topbar-left"></div>
+    <div id="topbar-right"></div>
+  </header>
 
+  <!-- MAIN VIEWPORT -->
+  <main id="app-viewport" class="relative z-10 flex-grow flex items-center justify-center px-6 sm:px-12 py-4"></main>
+
+  <!-- MINIMAL FOOTER -->
+  <footer class="relative z-20 min-h-[44px]"></footer>
+
+  <!-- FLOATING FEEDBACK TOAST -->
+  <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none"></div>
+
+  <script>
+    const state = {
+      screen: 'MENU', // 'MENU' | 'JOIN_LOBBY' | 'LOBBY' | 'ROLE_REVEAL'
+      lobby: {
+        roomCode: 'AFH-409',
+        isHost: true,
+        players: [
+          { id: 1, name: 'You', isSelf: true, ready: true, role: null },
+          { id: 2, name: 'Mirella', isSelf: false, ready: true, role: null },
+          { id: 3, name: 'Vesper', isSelf: false, ready: true, role: null },
+          { id: 4, name: 'Caleb', isSelf: false, ready: false, role: null }
+        ],
+        extraNames: ['Soren', 'Isolde', 'Rowan', 'Evelyn']
+      },
+      assignedRole: 'SURVIVOR'
+    };
+
+    let audioCtx = null;
+
+    function playChime(type = 'hover') {
+      try {
+        const savedVol = Number(localStorage.getItem('afterHoursVolume') ?? 70);
+        const vol = savedVol / 100;
+        if (vol <= 0) return;
+
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return;
+          audioCtx = new AudioContextClass();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        if (type === 'hunter') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(110, now);
+          osc.frequency.exponentialRampToValueAtTime(55, now + 0.45);
+          gain.gain.setValueAtTime(0.08 * vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.48);
+        } else if (type === 'select') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(420, now);
+          osc.frequency.exponentialRampToValueAtTime(560, now + 0.16);
+          gain.gain.setValueAtTime(0.06 * vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+        } else {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(360, now + 0.08);
+          gain.gain.setValueAtTime(0.03 * vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+        }
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      } catch (e) {}
+    }
+
+    function showToast(message) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      container.innerHTML = `
+        <div class="screen-fade px-5 py-2 bg-[#091324]/85 border border-[#436b95]/35 text-xs tracking-[0.25em] uppercase text-[#dce7f5] glow-teal">
+          ${message}
+        </div>
+      `;
+      setTimeout(() => {
+        if (container) container.innerHTML = '';
+      }, 2000);
+    }
+
+    function go(screenName) {
+      playChime('select');
+      state.screen = screenName;
+      render();
+    }
+
+    function render() {
+      const viewport = document.getElementById('app-viewport');
+      const topLeft = document.getElementById('topbar-left');
+      topLeft.innerHTML = '';
+
+      if (state.screen === 'MENU') {
+        viewport.innerHTML = renderMainMenu();
+      } else if (state.screen === 'JOIN_LOBBY') {
+        topLeft.innerHTML = `<button onclick="go('MENU')" class="float-link font-eerie text-2xl sm:text-3xl tracking-[0.16em]">Back</button>`;
+        viewport.innerHTML = renderJoinLobby();
+        setTimeout(() => {
+          const input = document.getElementById('room-code-field');
+          if (input) input.focus();
+        }, 50);
+      } else if (state.screen === 'LOBBY') {
+        topLeft.innerHTML = `<button onclick="go('MENU')" class="float-link font-eerie text-2xl sm:text-3xl tracking-[0.16em]">Leave</button>`;
+        viewport.innerHTML = renderLobby();
+      } else if (state.screen === 'ROLE_REVEAL') {
+        topLeft.innerHTML = `<button onclick="go('LOBBY')" class="float-link font-eerie text-2xl sm:text-3xl tracking-[0.16em]">Lobby</button>`;
+        viewport.innerHTML = renderRoleReveal();
+      }
+    }
+
+    /* ============================================================================
+       1. MAIN MENU
+    ============================================================================ */
+    function renderMainMenu() {
+      return `
+        <div class="screen-fade flex flex-col items-center text-center my-auto pb-12">
+          <div class="title-bob relative inline-flex flex-col items-center select-none mb-12" aria-label="AFTER HOURS">
+            <span class="absolute -left-8 top-6 w-3 h-3 rounded-full bg-[#dce7f5] opacity-90 shadow-[0_0_12px_#dce7f5]"></span>
+            <span class="absolute -left-12 top-12 w-1.5 h-1.5 rounded-full bg-[#dce7f5] opacity-75"></span>
+            <span class="absolute -left-6 top-16 w-2 h-2 rounded-full bg-[#dce7f5] opacity-80"></span>
+            <span class="absolute -right-8 bottom-8 w-3 h-3 rounded-full bg-[#dce7f5] opacity-85 shadow-[0_0_12px_#dce7f5]"></span>
+            <span class="absolute -right-11 bottom-4 w-1.5 h-1.5 rounded-full bg-[#dce7f5] opacity-70"></span>
+            <span class="absolute right-4 -top-3 w-2 h-2 rounded-full bg-[#dce7f5] opacity-80"></span>
+
+            <h1 class="font-haunted font-extrabold text-[#edf4fc] glow-mist leading-[0.82] tracking-[0.02em] flex flex-col items-center">
+              <span class="block text-7xl sm:text-8xl md:text-[7.75rem] lg:text-[9rem] -rotate-2">
+                <span class="inline-block text-[1.15em] -translate-y-1">A</span>fter
+              </span>
+              <span class="block text-7xl sm:text-8xl md:text-[8.25rem] lg:text-[9.5rem] rotate-1 -mt-2 sm:-mt-3">
+                <span class="inline-block text-[1.14em]">H</span>our<span class="inline-block text-[1.18em] translate-y-1.5 -rotate-3">S</span>
+              </span>
+            </h1>
+          </div>
+
+          <nav class="flex flex-col items-center gap-5">
+            <button onmouseenter="playChime('hover')" onclick="createLobby()"
+              class="float-link group font-eerie text-2xl sm:text-[26px] tracking-[0.12em] inline-flex items-center gap-3">
+              <span class="opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">›</span>
+              <span>Create Lobby</span>
+              <span class="opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">‹</span>
+            </button>
+
+            <button onmouseenter="playChime('hover')" onclick="go('JOIN_LOBBY')"
+              class="float-link group font-eerie text-2xl sm:text-[26px] tracking-[0.12em] inline-flex items-center gap-3">
+              <span class="opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">›</span>
+              <span>Join Lobby</span>
+              <span class="opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">‹</span>
+            </button>
+
+            <a href="how-to-play.html" onmouseenter="playChime('hover')" onclick="playChime('select')"
+              class="float-link group font-eerie text-2xl sm:text-[26px] tracking-[0.12em] inline-flex items-center gap-3">
+              <span class="opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">›</span>
+              <span>How to Play</span>
+              <span class="opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">‹</span>
+            </a>
+
+            <a href="settings.html" onmouseenter="playChime('hover')" onclick="playChime('select')"
+              class="float-link group font-eerie text-2xl sm:text-[26px] tracking-[0.12em] inline-flex items-center gap-3">
+              <span class="opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">›</span>
+              <span>Settings</span>
+              <span class="opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">‹</span>
+            </a>
+
+            <a href="quit.html" onmouseenter="playChime('hover')" onclick="playChime('select')"
+              class="float-link group font-eerie text-2xl sm:text-[26px] tracking-[0.12em] inline-flex items-center gap-3">
+              <span class="opacity-0 -translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">›</span>
+              <span>Quit</span>
+              <span class="opacity-0 translate-x-1 group-hover:opacity-80 group-hover:translate-x-0 transition-all text-base text-[#7aa3cc]">‹</span>
+            </a>
+          </nav>
+        </div>
+      `;
+    }
+
+    /* ============================================================================
+       2. JOIN LOBBY SCREEN
+    ============================================================================ */
+    function renderJoinLobby() {
+      return `
+        <div class="screen-fade w-full max-w-md flex flex-col items-center text-center my-auto pb-12">
+          <div class="text-[10px] tracking-[0.32em] uppercase text-[#6e94b8]/80 mb-2">
+            After Curfew
+          </div>
+          <h2 class="font-eerie text-3xl sm:text-5xl tracking-[0.18em] text-[#dce7f5] glow-mist mb-10 font-normal">
+            Join Lobby
+          </h2>
+
+          <label for="room-code-field" class="text-xs tracking-[0.26em] uppercase text-[#8cb2d6]/85 mb-3">
+            Enter Room Code
+          </label>
+          <input id="room-code-field" type="text" maxlength="7" value="AFH-409"
+            onkeydown="if(event.key==='Enter') confirmJoin()"
+            class="w-56 bg-transparent border-b border-[#6e94b8]/55 focus:border-[#dce7f5] outline-none py-2.5 text-center font-mono-clean text-2xl tracking-[0.28em] uppercase text-[#edf4fc] glow-teal mb-12" />
+
+          <div class="flex items-center gap-12">
+            <button onmouseenter="playChime('hover')" onclick="confirmJoin()"
+              class="float-link font-eerie text-2xl tracking-[0.14em] text-[#dce7f5] glow-mist">
+              Join
+            </button>
+            <button onmouseenter="playChime('hover')" onclick="go('MENU')"
+              class="float-link font-eerie text-2xl tracking-[0.14em] opacity-70">
+              Back
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function createLobby() {
+      const code = Math.floor(100 + Math.random() * 900);
+      state.lobby.roomCode = `AFH-${code}`;
+      state.lobby.isHost = true;
+      go('LOBBY');
+    }
+
+    function confirmJoin() {
+      const val = (document.getElementById('room-code-field')?.value || 'AFH-409').trim().toUpperCase();
+      if (val.length < 3) {
+        showToast('Enter Valid Code');
+        return;
+      }
+      state.lobby.roomCode = val;
+      state.lobby.isHost = false;
+      go('LOBBY');
+    }
+
+    /* ============================================================================
+       3. CREATE / ACTIVE LOBBY SCREEN
+    ============================================================================ */
+    function renderLobby() {
+      const players = state.lobby.players;
+      const canStart = players.length >= 3 && players.length <= 6;
+      const self = players.find(p => p.isSelf);
+
+      let rowsHTML = '';
+      for (let i = 0; i < 6; i++) {
+        const p = players[i];
+        if (p) {
+          rowsHTML += `
+            <div class="flex items-center justify-between py-2.5 border-b border-[#436b95]/22">
+              <div class="flex items-center gap-3.5">
+                <span class="w-1.5 h-1.5 rounded-full ${p.ready ? 'bg-[#7aa3cc] shadow-[0_0_8px_#7aa3cc]' : 'bg-[#436b95]/40'}"></span>
+                <span class="font-serif-clean text-lg tracking-[0.1em] text-[#dce7f5]">${p.name}</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <span class="text-xs tracking-[0.18em] uppercase ${p.ready ? 'text-[#6e94b8]' : 'text-[#436b95]/60'}">
+                  ${p.ready ? 'Ready' : 'Waiting'}
+                </span>
+                ${!p.isSelf ? `
+                  <button onclick="kickPlayer(${p.id})" class="text-xs text-[#436b95] hover:text-[#dce7f5] transition" title="Remove">
+                    ✕
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        } else {
+          rowsHTML += `
+            <div class="flex items-center justify-between py-2.5 border-b border-[#436b95]/12 opacity-35">
+              <div class="flex items-center gap-3.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#436b95]/30"></span>
+                <span class="font-serif-clean italic text-base tracking-[0.12em] text-[#6e94b8]">Empty</span>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      return `
+        <div class="screen-fade w-full max-w-md flex flex-col items-center my-auto pb-8">
+          <button onclick="copyCode()" class="group flex flex-col items-center mb-8">
+            <span class="text-[10px] tracking-[0.3em] uppercase text-[#8cb2d6]/85 mb-1">Room Code</span>
+            <span class="font-mono-clean text-xl tracking-[0.28em] text-[#edf4fc] glow-teal group-hover:glow-mist transition">
+              ${state.lobby.roomCode}
+            </span>
+            <span class="w-24 h-[1px] mt-2 bg-gradient-to-r from-transparent via-[#8cb2d6]/50 to-transparent"></span>
+          </button>
+
+          <div class="w-full mb-8">
+            ${rowsHTML}
+          </div>
+
+          <div class="flex items-center gap-6 mb-9 text-xs tracking-[0.18em] uppercase text-[#6e94b8]/75">
+            <button onclick="addBot()" ${players.length >= 6 ? 'disabled' : ''}
+              class="hover:text-[#dce7f5] disabled:opacity-25 transition">
+              + Add Player
+            </button>
+            <span class="opacity-30">|</span>
+            <button onclick="removeLastBot()" ${players.length <= 1 ? 'disabled' : ''}
+              class="hover:text-[#dce7f5] disabled:opacity-25 transition">
+              - Remove
+            </button>
+          </div>
+
+          <div class="flex items-center gap-12">
+            <button onmouseenter="playChime('hover')" onclick="toggleReady()"
+              class="float-link font-eerie text-2xl tracking-[0.14em] transition-all duration-300 ${self?.ready ? '!text-white scale-105 [text-shadow:0_0_12px_#ffffff,0_0_26px_#dce7f5,0_0_48px_#8fb8e0]' : 'opacity-65'}">
+              Ready
+            </button>
+
+            <button onmouseenter="playChime('hover')" onclick="beginMatch()" ${!canStart ? 'disabled' : ''}
+              class="float-link font-eerie text-2xl tracking-[0.14em] ${canStart ? 'text-[#dce7f5] glow-mist' : 'opacity-25 pointer-events-none'}">
+              Start
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function copyCode() {
+      playChime('select');
+      if (navigator.clipboard) navigator.clipboard.writeText(state.lobby.roomCode).catch(() => {});
+      showToast('Code Copied');
+    }
+
+    function addBot() {
+      if (state.lobby.players.length >= 6) return;
+      playChime('hover');
+      const used = state.lobby.players.map(p => p.name);
+      const name = state.lobby.extraNames.find(n => !used.includes(n)) || `Shade ${state.lobby.players.length + 1}`;
+      state.lobby.players.push({ id: Date.now(), name, isSelf: false, ready: true, role: null });
+      render();
+    }
+
+    function removeLastBot() {
+      if (state.lobby.players.length <= 1) return;
+      playChime('hover');
+      state.lobby.players.pop();
+      render();
+    }
+
+    function kickPlayer(id) {
+      playChime('hover');
+      state.lobby.players = state.lobby.players.filter(p => p.id !== id);
+      render();
+    }
+
+    function toggleReady() {
+      playChime('select');
+      const self = state.lobby.players.find(p => p.isSelf);
+      if (self) self.ready = !self.ready;
+      render();
+    }
+
+    function beginMatch() {
+      const players = state.lobby.players;
+      if (players.length < 3) return;
+
+      const hunterCount = players.length >= 5 ? 2 : 1;
+      const order = players.map((_, i) => i).sort(() => Math.random() - 0.5);
+      const hunters = new Set(order.slice(0, hunterCount));
+
+      players.forEach((p, idx) => {
+        p.role = hunters.has(idx) ? 'HUNTER' : 'SURVIVOR';
+      });
+
+      const self = players.find(p => p.isSelf);
+      state.assignedRole = self.role;
+      playChime(self.role === 'HUNTER' ? 'hunter' : 'select');
+      go('ROLE_REVEAL');
+    }
+
+    function renderRoleReveal() {
+      const isHunter = state.assignedRole === 'HUNTER';
+      return `
+        <div class="screen-fade flex flex-col items-center justify-center text-center my-auto pb-10">
+          <div class="text-xs tracking-[0.34em] uppercase text-[#8cb2d6] mb-3">
+            You Are
+          </div>
+          <h2 class="font-eerie text-5xl sm:text-7xl tracking-[0.22em] uppercase ${isHunter ? 'text-[#9e242e] glow-crimson' : 'text-[#edf4fc] glow-mist'} mb-3 font-normal">
+            ${isHunter ? 'Hunter' : 'Survivor'}
+          </h2>
+          <div class="w-36 h-[1px] mb-4 bg-gradient-to-r from-transparent ${isHunter ? 'via-[#9e242e]/70' : 'via-[#8cb2d6]/65'} to-transparent"></div>
+          <p class="font-serif-clean italic text-lg text-[#edf4fc]/85 tracking-wider mb-10">
+            ${isHunter ? 'Eliminate them before the rituals finish.' : 'Complete the rituals and survive.'}
+          </p>
+          <button onmouseenter="playChime('hover')" onclick="go('LOBBY')"
+            class="float-link font-eerie text-2xl tracking-[0.16em]">
+            Return to Lobby
+          </button>
+        </div>
+      `;
+    }
+
+    /* ============================================================================
+       DRIFTING MIST & FINE RAIN ATMOSPHERE CANVAS
+    ============================================================================ */
+    function initAtmosphere() {
+      const canvas = document.getElementById('atmosphere-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w = canvas.width = window.innerWidth;
+      let h = canvas.height = window.innerHeight;
+
+      const drops = Array.from({ length: 55 }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        len: Math.random() * 14 + 6,
+        vy: Math.random() * 2.2 + 1.4,
+        vx: -0.35,
+        alpha: Math.random() * 0.18 + 0.05
+      }));
+
+      const fogWisps = Array.from({ length: 8 }, () => ({
+        x: Math.random() * w,
+        y: h * (0.45 + Math.random() * 0.45),
+        r: Math.random() * 220 + 140,
+        vx: (Math.random() - 0.5) * 0.25,
+        alpha: Math.random() * 0.06 + 0.02
+      }));
+
+      window.addEventListener('resize', () => {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+      });
+
+      function loop() {
+        ctx.clearRect(0, 0, w, h);
+
+        for (const f of fogWisps) {
+          f.x += f.vx;
+          if (f.x < -f.r) f.x = w + f.r;
+          if (f.x > w + f.r) f.x = -f.r;
+
+          const grad = ctx.createRadialGradient(f.x, f.y, 10, f.x, f.y, f.r);
+          grad.addColorStop(0, `rgba(110, 148, 184, ${f.alpha})`);
+          grad.addColorStop(1, 'rgba(9, 19, 36, 0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.lineWidth = 1;
+        for (const d of drops) {
+          d.x += d.vx;
+          d.y += d.vy;
+          if (d.y > h) {
+            d.y = -20;
+            d.x = Math.random() * w;
+          }
+          ctx.strokeStyle = `rgba(175, 202, 232, ${d.alpha})`;
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y);
+          ctx.lineTo(d.x + d.vx * 3, d.y + d.len);
+          ctx.stroke();
+        }
+
+        requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && state.screen !== 'MENU') {
+        go('MENU');
+      }
+    });
+
+    window.onload = function () {
+      initAtmosphere();
+      render();
+    };
+  </script>
+</body>
 </html>
