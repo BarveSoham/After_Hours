@@ -78,11 +78,29 @@ export class PlayerController {
       this.scene.player.body.setVelocity(0, 0);
     }
 
-    // Smoothly glide remote players toward target positions (anti-jitter, 22 * dt)
+    // Smoothly glide remote players toward target positions (continuous flow, zero stutter)
     this.scene.otherPlayers.getChildren().forEach((other) => {
       if (other.targetX !== undefined) {
-        other.x = Phaser.Math.Linear(other.x, other.targetX, Math.min(1, 22 * dt));
-        other.y = Phaser.Math.Linear(other.y, other.targetY, Math.min(1, 22 * dt));
+        const dist = Phaser.Math.Distance.Between(other.x, other.y, other.targetX, other.targetY);
+        if (dist > 180) {
+          // Snap if too far (teleport, respawn, map boundary)
+          other.x = other.targetX;
+          other.y = other.targetY;
+        } else if (dist > 0.05) {
+          // Frame-rate independent exponential smoothing: fluid motion, never micro-stutters mid-step
+          const lerpFactor = 1 - Math.exp(-22 * dt);
+          other.x += (other.targetX - other.x) * lerpFactor;
+          other.y += (other.targetY - other.y) * lerpFactor;
+        }
+
+        // Smooth rotation angle interpolation
+        if (other.targetAngle !== undefined) {
+          const diff = Phaser.Math.Angle.WrapDegrees(other.targetAngle - other.angle);
+          if (Math.abs(diff) > 0.5) {
+            const rotFactor = 1 - Math.exp(-20 * dt);
+            other.setAngle(other.angle + diff * rotFactor);
+          }
+        }
       }
     });
   }

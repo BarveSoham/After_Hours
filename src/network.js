@@ -25,6 +25,8 @@ export class NetworkManager {
       sc.taskCompleted = false;
       sc.isChanneling = false;
       sc.channelProgress = 0;
+      sc.hasSentFinish = false;
+      sc.channelConfirmed = false;
       sc.spectateTarget = null;
       sc.ui.setChannelProgress(false);
 
@@ -173,12 +175,31 @@ export class NetworkManager {
         if (playerInfo.id === other.playerId) {
           other.targetX = playerInfo.x;
           other.targetY = playerInfo.y;
-          other.setAngle(playerInfo.angle);
+          if (playerInfo.angle !== undefined) {
+            other.targetAngle = playerInfo.angle;
+          }
           found = true;
         }
       });
       if (!found) {
         sc.addOtherPlayer(playerInfo);
+      }
+    });
+
+    s.on('channelAccepted', ({ durationMs }) => {
+      if (sc.isChanneling) {
+        sc.channelConfirmed = true;
+        if (durationMs) sc.channelDuration = durationMs;
+      }
+    });
+
+    s.on('channelRejected', () => {
+      if (sc.isChanneling) {
+        sc.isChanneling = false;
+        sc.channelProgress = 0;
+        sc.hasSentFinish = false;
+        sc.channelConfirmed = false;
+        sc.ui.setChannelProgress(false);
       }
     });
 
@@ -224,6 +245,9 @@ export class NetworkManager {
     s.on('personalTaskDone', () => {
       sc.taskCompleted = true;
       sc.isChanneling = false;
+      sc.channelProgress = 0;
+      sc.hasSentFinish = false;
+      sc.channelConfirmed = false;
       sc.ui.setChannelProgress(false);
       sc.keycardSprite.setVisible(false);
       sc.interactionPrompt.setVisible(false);
@@ -283,6 +307,9 @@ export class NetworkManager {
         sc.isAlive = false;
         sc.setInGameCursor(true);
         sc.isChanneling = false;
+        sc.channelProgress = 0;
+        sc.hasSentFinish = false;
+        sc.channelConfirmed = false;
         sc.ui.setChannelProgress(false);
         sc.player.setFillStyle(0x444444);
         sc.ui.showEliminated();

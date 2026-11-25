@@ -376,7 +376,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('startChanneling', () => {
+  socket.on('startChanneling', (clientPos) => {
     try {
       if (!currentRoom || !rooms[currentRoom]) return;
       const room = rooms[currentRoom];
@@ -385,11 +385,21 @@ io.on('connection', (socket) => {
 
       if (!p || p.role !== 'survivor' || !p.alive || p.taskCompleted || !task || room.gameState !== 'in_progress') return;
 
+      if (clientPos && typeof clientPos.x === 'number' && typeof clientPos.y === 'number') {
+        const moveDist = Math.hypot(clientPos.x - p.x, clientPos.y - p.y);
+        if (moveDist < 120) {
+          p.x = clientPos.x;
+          p.y = clientPos.y;
+        }
+      }
+
       const dist = Math.hypot(p.x - task.x, p.y - task.y);
-      if (dist < 85) {
+      if (dist < 115) {
         room.activeChannels = room.activeChannels || {};
         room.activeChannels[socket.id] = Date.now();
-        socket.emit('channelAccepted', { durationMs: 1250 });
+        socket.emit('channelAccepted', { durationMs: CHANNEL_DURATION_MS });
+      } else {
+        socket.emit('channelRejected');
       }
     } catch (err) {
       console.error('[Error in startChanneling]', err);
@@ -407,7 +417,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('finishChanneling', () => {
+  socket.on('finishChanneling', (clientPos) => {
     try {
       if (!currentRoom || !rooms[currentRoom]) return;
       const room = rooms[currentRoom];
@@ -420,16 +430,26 @@ io.on('connection', (socket) => {
         return;
       }
 
+      if (clientPos && typeof clientPos.x === 'number' && typeof clientPos.y === 'number') {
+        const moveDist = Math.hypot(clientPos.x - p.x, clientPos.y - p.y);
+        if (moveDist < 120) {
+          p.x = clientPos.x;
+          p.y = clientPos.y;
+        }
+      }
+
       const elapsed = Date.now() - startTime;
       const dist = Math.hypot(p.x - task.x, p.y - task.y);
 
-      if (elapsed >= CHANNEL_DURATION_MS && dist < 95) {
+      // Generous latency margin: require at least (CHANNEL_DURATION_MS - 250)ms and dist < 120
+      if (elapsed >= (CHANNEL_DURATION_MS - 250) && dist < 120) {
         p.taskCompleted = true;
         task.completed = true;
         if (room.activeChannels) delete room.activeChannels[socket.id];
         socket.emit('personalTaskDone');
         logToFile(`Survivor ${socket.id} completed terminal in [${currentRoom}]`);
-      } else {
+      } else if (dist >= 120 || elapsed > 6000) {
+        // Only cancel if player actually moved out of range or timed out
         if (room.activeChannels) delete room.activeChannels[socket.id];
       }
     } catch (err) {

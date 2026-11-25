@@ -31,14 +31,16 @@ class MainScene extends Phaser.Scene {
 
     this.isChanneling = false;
     this.channelProgress = 0;
-    this.channelDuration = 1250; // 1.25s channel time
+    this.channelDuration = 1200; // 1.20s channel time matching server CHANNEL_DURATION_MS
+    this.channelConfirmed = false;
+    this.hasSentFinish = false;
     this.canAttack = true;
     this.attackCooldownTimer = 0;
     this.attackCooldownDuration = 1200;
 
-    // Network Sync Throttle (~30Hz)
+    // Network Sync Throttle (~40Hz, 25ms)
     this.networkTickTimer = 0;
-    this.networkTickInterval = 33;
+    this.networkTickInterval = 25;
 
     // 1. World Bounds
     this.physics.world.setBounds(0, 0, 2000, 1500);
@@ -67,9 +69,9 @@ class MainScene extends Phaser.Scene {
     this.player.body.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.obstacles);
 
-    // 6. Camera
+    // 6. Camera (snappy 0.18 lerp eliminates floaty camera lag)
     this.cameras.main.setBounds(0, 0, 2000, 1500);
-    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+    this.cameras.main.startFollow(this.player, true, 0.18, 0.18);
 
     // 7. Darkness (full-screen 1280x720 overlay anchored to top-left)
     this.darkness = this.add.renderTexture(0, 0, 1280, 720).setOrigin(0, 0).setDepth(10).setScrollFactor(0);
@@ -120,6 +122,8 @@ class MainScene extends Phaser.Scene {
       if (this.isChanneling) {
         this.isChanneling = false;
         this.channelProgress = 0;
+        this.hasSentFinish = false;
+        this.channelConfirmed = false;
         this.ui.setChannelProgress(false);
         this.socket.emit('cancelChanneling');
       }
@@ -216,29 +220,43 @@ class MainScene extends Phaser.Scene {
   }
 
   createFlashlightGraphic() {
-    this.lightMask = this.make.graphics({ x: 0, y: 0, add: false });
+    const size = 800;
+    const center = 400;
+
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
 
     // 1. Soft outer ambient aura around player
-    this.lightMask.fillStyle(0xffffff, 0.45);
-    this.lightMask.fillCircle(0, 0, 115);
+    g.fillStyle(0xffffff, 0.45);
+    g.fillCircle(center, center, 115);
 
     // 2. Clear personal light circle around player
-    this.lightMask.fillStyle(0xffffff, 1.0);
-    this.lightMask.fillCircle(0, 0, 80);
+    g.fillStyle(0xffffff, 1.0);
+    g.fillCircle(center, center, 80);
 
     // 3. Expanded directional flashlight beam (wider & longer reach)
     const range = 360;
     const halfAngle = Phaser.Math.DegToRad(32);
-    this.lightMask.beginPath();
-    this.lightMask.moveTo(0, 0);
-    this.lightMask.arc(0, 0, range, -halfAngle, halfAngle);
-    this.lightMask.closePath();
-    this.lightMask.fillPath();
+    g.beginPath();
+    g.moveTo(center, center);
+    g.arc(center, center, range, -halfAngle, halfAngle);
+    g.closePath();
+    g.fillPath();
+
+    g.generateTexture('flashlightBeamTexture', size, size);
+    g.destroy();
+
+    this.lightMask = this.make.image({ key: 'flashlightBeamTexture', add: false });
+    this.lightMask.setOrigin(0.5, 0.5);
 
     // 4. Emergency beacon light circle for powered exit gates
-    this.doorLightGraphic = this.make.graphics({ add: false });
-    this.doorLightGraphic.fillStyle(0xffffff, 0.95);
-    this.doorLightGraphic.fillCircle(0, 0, 160);
+    const doorG = this.make.graphics({ add: false });
+    doorG.fillStyle(0xffffff, 0.95);
+    doorG.fillCircle(160, 160, 160);
+    doorG.generateTexture('doorBeaconTexture', 320, 320);
+    doorG.destroy();
+
+    this.doorLightGraphic = this.make.image({ key: 'doorBeaconTexture', add: false });
+    this.doorLightGraphic.setOrigin(0.5, 0.5);
   }
 
   addOtherPlayer(playerInfo) {
@@ -261,6 +279,8 @@ class MainScene extends Phaser.Scene {
     other.isAlive = playerInfo.alive !== false;
     other.targetX = playerInfo.x;
     other.targetY = playerInfo.y;
+    other.targetAngle = (playerInfo.angle !== undefined) ? playerInfo.angle : 0;
+    other.setAngle(other.targetAngle);
     this.otherPlayers.add(other);
   }
 
@@ -308,6 +328,11 @@ class MainScene extends Phaser.Scene {
       return;
     }
 
+    const pointer = this.input.activePointer;
+    const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldPoint.x, worldPoint.y);
+    const deg = Phaser.Math.RadToDeg(angle);
+
     if (this.keycardSprite.visible && this.role === 'survivor') {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.keycardSprite.x, this.keycardSprite.y);
       const isTryingToMove = (
@@ -318,14 +343,18 @@ class MainScene extends Phaser.Scene {
         this.player.body.velocity.length() > 25
       );
 
-      if (dist < 75) {
+      if (dist < 85) {
         this.interactionPrompt.setVisible(true);
 
         if (this.playerController.interactKey.isDown && !isTryingToMove) {
           if (!this.isChanneling) {
             this.isChanneling = true;
             this.channelProgress = 0;
-            this.socket.emit('startChanneling');
+            this.hasSentFinish = false;
+            this.channelConfirmed = false;
+            // Immediate movement packet so server has exact stop coordinates
+            this.network.sendMovement(this.player.x, this.player.y, deg, false);
+            this.socket.emit('startChanneling', { x: this.player.x, y: this.player.y });
           }
 
           this.channelProgress += delta;
@@ -333,12 +362,17 @@ class MainScene extends Phaser.Scene {
           this.ui.setChannelProgress(true, ratio, this.player.x, this.player.y);
 
           if (this.channelProgress >= this.channelDuration) {
-            this.socket.emit('finishChanneling');
+            if (!this.hasSentFinish) {
+              this.hasSentFinish = true;
+              this.socket.emit('finishChanneling', { x: this.player.x, y: this.player.y });
+            }
           }
         } else {
           if (this.isChanneling) {
             this.isChanneling = false;
             this.channelProgress = 0;
+            this.hasSentFinish = false;
+            this.channelConfirmed = false;
             this.ui.setChannelProgress(false);
             this.socket.emit('cancelChanneling');
           }
@@ -348,6 +382,8 @@ class MainScene extends Phaser.Scene {
         if (this.isChanneling) {
           this.isChanneling = false;
           this.channelProgress = 0;
+          this.hasSentFinish = false;
+          this.channelConfirmed = false;
           this.ui.setChannelProgress(false);
           this.socket.emit('cancelChanneling');
         }
@@ -366,23 +402,25 @@ class MainScene extends Phaser.Scene {
       }
     }
 
-    const pointer = this.input.activePointer;
-    const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-    const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldPoint.x, worldPoint.y);
-    const deg = Phaser.Math.RadToDeg(angle);
-
-    // Network Sync throttled to 30Hz (~33ms)
+    // Network Sync throttled to 40Hz (25ms) with immediate state transitions
     this.networkTickTimer += delta;
-    if (this.networkTickTimer >= this.networkTickInterval) {
+    const isMoving = this.player.body.velocity.length() > 5;
+    const wasMoving = this.player.wasMoving || false;
+    const stateTransition = (isMoving !== wasMoving);
+    this.player.wasMoving = isMoving;
+
+    if (this.networkTickTimer >= this.networkTickInterval || stateTransition) {
       this.networkTickTimer = 0;
-      if (this.player.oldPosition && (
-        Math.abs(this.player.x - this.player.oldPosition.x) > 0.5 ||
-        Math.abs(this.player.y - this.player.oldPosition.y) > 0.5 ||
-        Math.abs(deg - this.player.oldPosition.angle) > 0.5 ||
-        this.playerController.isSprinting !== this.player.oldPosition.isSprinting
-      )) {
-        this.network.sendMovement(this.player.x, this.player.y, deg, this.playerController.isSprinting);
-        this.player.oldPosition = { x: this.player.x, y: this.player.y, angle: deg, isSprinting: this.playerController.isSprinting };
+      if (this.player.oldPosition) {
+        const moved = Math.hypot(this.player.x - this.player.oldPosition.x, this.player.y - this.player.oldPosition.y) > 0.4;
+        const angleDiff = Math.abs(Phaser.Math.Angle.WrapDegrees(deg - this.player.oldPosition.angle));
+        const turned = isMoving ? angleDiff > 2.0 : angleDiff > 4.5;
+        const sprintChanged = this.playerController.isSprinting !== this.player.oldPosition.isSprinting;
+
+        if (stateTransition || moved || turned || sprintChanged) {
+          this.network.sendMovement(this.player.x, this.player.y, deg, this.playerController.isSprinting);
+          this.player.oldPosition = { x: this.player.x, y: this.player.y, angle: deg, isSprinting: this.playerController.isSprinting };
+        }
       }
     }
     if (!this.player.oldPosition) {
@@ -417,6 +455,16 @@ class MainScene extends Phaser.Scene {
 const config = {
   type: Phaser.AUTO,
   parent: 'game-container',
+  render: {
+    powerPreference: 'high-performance',
+    antialias: false,
+    roundPixels: true
+  },
+  fps: {
+    min: 30,
+    target: 60,
+    forceSetTimeOut: false
+  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.NO_CENTER,

@@ -4,7 +4,7 @@ export class UIManager {
     this.scene = scene;
 
     this.hud = scene.add.graphics().setDepth(20).setScrollFactor(0);
-    this.heartbeatVignette = scene.add.graphics().setDepth(8).setScrollFactor(0);
+    this.heartbeatVignette = scene.add.graphics().setDepth(15).setScrollFactor(0);
 
     this.smoothedDanger = 0;
     this.pulsePhase = 0;
@@ -350,10 +350,15 @@ export class UIManager {
       this.attackCooldownText.setVisible(true);
 
       if (this.scene.canAttack) {
-        this.attackCooldownText.setText('ATTACK: READY [L-CLICK]').setColor('#2ecc71');
+        if (this.attackCooldownText.text !== 'ATTACK: READY [L-CLICK]') {
+          this.attackCooldownText.setText('ATTACK: READY [L-CLICK]').setColor('#2ecc71');
+        }
       } else {
         const pct = Math.ceil((this.scene.attackCooldownTimer / this.scene.attackCooldownDuration) * 10) / 10;
-        this.attackCooldownText.setText(`ATTACK: RECHARGING (${pct}s)`).setColor('#e74c3c');
+        const cooldownStr = `ATTACK: RECHARGING (${pct}s)`;
+        if (this.attackCooldownText.text !== cooldownStr) {
+          this.attackCooldownText.setText(cooldownStr).setColor('#e74c3c');
+        }
         this.hud.fillStyle(0x222226, 0.8);
         this.hud.fillRect(24, 68, 140, 8);
         this.hud.fillStyle(0xe74c3c, 1.0);
@@ -392,15 +397,19 @@ export class UIManager {
 
       if (doorInfos.length >= 1) {
         const d1 = doorInfos[0];
-        this.taskItem2.setText(`[!] ${d1.door.name.toUpperCase()} [${d1.distM}m ${d1.arrow}] *CLOSEST*`)
-          .setColor('#00ff88')
-          .setVisible(true);
+        const text1 = `[!] ${d1.door.name.toUpperCase()} [${d1.distM}m ${d1.arrow}] *CLOSEST*`;
+        if (this.taskItem2.text !== text1) {
+          this.taskItem2.setText(text1).setColor('#00ff88');
+        }
+        this.taskItem2.setVisible(true);
       }
       if (doorInfos.length >= 2) {
         const d2 = doorInfos[1];
-        this.taskItem3.setText(`[!] ${d2.door.name.toUpperCase()} [${d2.distM}m ${d2.arrow}]`)
-          .setColor('#2ecc71')
-          .setVisible(true);
+        const text2 = `[!] ${d2.door.name.toUpperCase()} [${d2.distM}m ${d2.arrow}]`;
+        if (this.taskItem3.text !== text2) {
+          this.taskItem3.setText(text2).setColor('#2ecc71');
+        }
+        this.taskItem3.setVisible(true);
       } else {
         this.taskItem3.setVisible(false);
       }
@@ -427,19 +436,20 @@ export class UIManager {
 
   updateHeartbeat(dt) {
     this.heartbeatVignette.clear();
-    if (!this.scene.isAlive || this.scene.hasEscaped) return;
+    // Only active survivors receive danger proximity heartbeat
+    if (!this.scene.isAlive || this.scene.hasEscaped || !this.scene.isMatchActive || this.scene.role === 'hunter') return;
 
     let hunterDistance = 9999;
     this.scene.otherPlayers.getChildren().forEach((other) => {
-      if (other.playerRole === 'hunter') {
+      if (other.playerRole && other.playerRole.toLowerCase() === 'hunter') {
         const d = Phaser.Math.Distance.Between(this.scene.player.x, this.scene.player.y, other.x, other.y);
         if (d < hunterDistance) hunterDistance = d;
       }
     });
 
-    const DANGER_ZONE = 380;
+    const DANGER_ZONE = 420;
     const targetDanger = hunterDistance < DANGER_ZONE ? 1 - (hunterDistance / DANGER_ZONE) : 0;
-    this.smoothedDanger = Phaser.Math.Linear(this.smoothedDanger, targetDanger, Math.min(1, 12 * dt));
+    this.smoothedDanger = Phaser.Math.Linear(this.smoothedDanger, targetDanger, Math.min(1, 14 * dt));
 
     if (this.smoothedDanger > 0.02) {
       const currentFrequency = 4 + this.smoothedDanger * 10;
@@ -448,13 +458,25 @@ export class UIManager {
       const rawWave = (Math.sin(this.pulsePhase) + 1) * 0.5;
       const beatIntensity = Math.pow(rawWave, 1.4);
 
-      const baseAlpha = this.smoothedDanger * 0.18;
-      const peakAlpha = this.smoothedDanger * 0.55;
-      const finalAlpha = baseAlpha + beatIntensity * peakAlpha;
+      const baseAlpha = this.smoothedDanger * 0.25;
+      const peakAlpha = this.smoothedDanger * 0.65;
+      const finalAlpha = Math.min(0.95, baseAlpha + beatIntensity * peakAlpha);
 
-      const thickness = 16 + this.smoothedDanger * 26;
-      this.heartbeatVignette.lineStyle(thickness, 0xa30000, finalAlpha);
-      this.heartbeatVignette.strokeRect(0, 0, this.scene.scale.width, this.scene.scale.height);
+      const w = this.scene.scale.width;
+      const h = this.scene.scale.height;
+
+      // Vivid crimson pulsing border vignette anchored within screen bounds
+      const thickness = Math.round(20 + this.smoothedDanger * 32);
+      this.heartbeatVignette.lineStyle(thickness, 0xdd1111, finalAlpha);
+      this.heartbeatVignette.strokeRect(thickness / 2, thickness / 2, w - thickness, h - thickness);
+
+      // Inner intense crimson glow ring when danger is high
+      if (this.smoothedDanger > 0.35) {
+        const innerAlpha = Math.min(0.7, (this.smoothedDanger - 0.35) * 0.55 * beatIntensity);
+        const innerThick = Math.round(thickness * 1.4);
+        this.heartbeatVignette.lineStyle(innerThick, 0x880000, innerAlpha);
+        this.heartbeatVignette.strokeRect(innerThick / 2, innerThick / 2, w - innerThick, h - innerThick);
+      }
     }
   }
 }
