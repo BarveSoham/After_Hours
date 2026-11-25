@@ -14,6 +14,7 @@ export class UIManager {
 
     this.createHUD();
     this.createGameOverUI();
+    this.createPauseUI();
   }
 
   createHUD() {
@@ -33,13 +34,19 @@ export class UIManager {
     }).setDepth(21).setVisible(false).setScrollFactor(0);
 
     this.taskItem1 = this.scene.add.text(24, 62, '[ ] Bypass Security Terminal', {
-      fontSize: '12px',
+      fontSize: '11px',
       color: '#aaaaaa',
       fontFamily: 'monospace'
     }).setDepth(21).setVisible(false).setScrollFactor(0);
 
-    this.taskItem2 = this.scene.add.text(24, 80, '[ ] Escape Through Exit', {
-      fontSize: '12px',
+    this.taskItem2 = this.scene.add.text(24, 78, '[ ] Escape: Exit Gate A', {
+      fontSize: '11px',
+      color: '#555555',
+      fontFamily: 'monospace'
+    }).setDepth(21).setVisible(false).setScrollFactor(0);
+
+    this.taskItem3 = this.scene.add.text(24, 94, '[ ] Escape: Exit Gate B', {
+      fontSize: '11px',
       color: '#555555',
       fontFamily: 'monospace'
     }).setDepth(21).setVisible(false).setScrollFactor(0);
@@ -141,7 +148,137 @@ export class UIManager {
     });
   }
 
+  createPauseUI() {
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+    const cx = width / 2;
+    const cy = height / 2;
+
+    this.isPauseVisible = false;
+
+    this.pauseOverlay = this.scene.add.rectangle(cx, cy, width, height, 0x000000, 0.78)
+      .setDepth(90)
+      .setScrollFactor(0)
+      .setVisible(false);
+
+    this.pauseTitle = this.scene.add.text(cx, cy - 65, 'SYSTEM PAUSED', {
+      fontSize: '28px',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      color: '#ffffff',
+      letterSpacing: 2
+    }).setOrigin(0.5).setDepth(91).setScrollFactor(0).setVisible(false);
+
+    this.pauseSub = this.scene.add.text(cx, cy - 25, 'Warning: The match continues around you!', {
+      fontSize: '12px',
+      fontFamily: 'monospace',
+      color: '#ff4444'
+    }).setOrigin(0.5).setDepth(91).setScrollFactor(0).setVisible(false);
+
+    // RESUME BUTTON
+    this.btnResumeBg = this.scene.add.rectangle(cx, cy + 25, 210, 44, 0x27ae60)
+      .setDepth(91)
+      .setScrollFactor(0)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+
+    this.btnResumeText = this.scene.add.text(cx, cy + 25, 'RESUME [ESC]', {
+      fontSize: '15px',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      color: '#ffffff'
+    }).setOrigin(0.5).setDepth(92).setScrollFactor(0).setVisible(false);
+
+    this.btnResumeBg.on('pointerover', () => {
+      if (this.isPauseVisible) this.btnResumeBg.setFillStyle(0x2ecc71);
+    });
+    this.btnResumeBg.on('pointerout', () => {
+      if (this.isPauseVisible) this.btnResumeBg.setFillStyle(0x27ae60);
+    });
+    this.btnResumeBg.on('pointerdown', () => {
+      if (!this.isPauseVisible) return;
+      this.scene.togglePause(false);
+    });
+
+    // ABANDON / RETURN TO LOBBY BUTTON
+    this.btnPauseLobbyBg = this.scene.add.rectangle(cx, cy + 85, 210, 44, 0x0c292b)
+      .setDepth(91)
+      .setScrollFactor(0)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+
+    this.btnPauseLobbyText = this.scene.add.text(cx, cy + 85, 'ABANDON TO LOBBY', {
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      color: '#4fffe3'
+    }).setOrigin(0.5).setDepth(92).setScrollFactor(0).setVisible(false);
+
+    this.btnPauseLobbyBg.on('pointerover', () => {
+      if (this.isPauseVisible) this.btnPauseLobbyBg.setFillStyle(0x16403d);
+    });
+    this.btnPauseLobbyBg.on('pointerout', () => {
+      if (this.isPauseVisible) this.btnPauseLobbyBg.setFillStyle(0x0c292b);
+    });
+    this.btnPauseLobbyBg.on('pointerdown', () => {
+      if (!this.isPauseVisible) return;
+      this.scene.returnToLobby();
+    });
+
+    // EXIT TO MAIN MENU BUTTON
+    this.btnPauseMenuBg = this.scene.add.rectangle(cx, cy + 140, 210, 40, 0x180b0b)
+      .setDepth(91)
+      .setScrollFactor(0)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+
+    this.btnPauseMenuText = this.scene.add.text(cx, cy + 140, 'EXIT TO MAIN MENU', {
+      fontSize: '13px',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      color: '#ff6666'
+    }).setOrigin(0.5).setDepth(92).setScrollFactor(0).setVisible(false);
+
+    this.btnPauseMenuBg.on('pointerover', () => {
+      if (this.isPauseVisible) this.btnPauseMenuBg.setFillStyle(0x381010);
+    });
+    this.btnPauseMenuBg.on('pointerout', () => {
+      if (this.isPauseVisible) this.btnPauseMenuBg.setFillStyle(0x180b0b);
+    });
+    this.btnPauseMenuBg.on('pointerdown', () => {
+      if (!this.isPauseVisible) return;
+      window.location.href = '/mainscreen/index.html';
+    });
+  }
+
+  showPause() {
+    this.isPauseVisible = true;
+    this.pauseOverlay.setVisible(true);
+    this.pauseTitle.setVisible(true);
+    this.pauseSub.setVisible(true);
+    this.btnResumeBg.setVisible(true);
+    this.btnResumeText.setVisible(true);
+    this.btnPauseLobbyBg.setVisible(true);
+    this.btnPauseLobbyText.setVisible(true);
+    this.btnPauseMenuBg.setVisible(true);
+    this.btnPauseMenuText.setVisible(true);
+  }
+
+  hidePause() {
+    this.isPauseVisible = false;
+    this.pauseOverlay.setVisible(false);
+    this.pauseTitle.setVisible(false);
+    this.pauseSub.setVisible(false);
+    this.btnResumeBg.setVisible(false);
+    this.btnResumeText.setVisible(false);
+    this.btnPauseLobbyBg.setVisible(false);
+    this.btnPauseLobbyText.setVisible(false);
+    this.btnPauseMenuBg.setVisible(false);
+    this.btnPauseMenuText.setVisible(false);
+  }
+
   showGameOver(message, color) {
+    this.hidePause();
     this.isGameOverVisible = true;
 
     this.endBannerText.setText(message).setColor(color);
@@ -157,6 +294,7 @@ export class UIManager {
   }
 
   hideGameOver() {
+    this.hidePause();
     this.isGameOverVisible = false;
     this.endOverlay.setVisible(false);
     this.endBannerText.setVisible(false);
@@ -170,6 +308,7 @@ export class UIManager {
     this.taskListHeader.setVisible(false);
     this.taskItem1.setVisible(false);
     this.taskItem2.setVisible(false);
+    this.taskItem3.setVisible(false);
     this.attackCooldownText.setVisible(false);
 
     this.spectatorBanner.setText('ELIMINATED (SPECTATING)').setColor('#ff3b30').setVisible(true);
@@ -180,6 +319,7 @@ export class UIManager {
     this.taskListHeader.setVisible(false);
     this.taskItem1.setVisible(false);
     this.taskItem2.setVisible(false);
+    this.taskItem3.setVisible(false);
 
     this.spectatorBanner.setText('ESCAPED (SPECTATING)').setColor('#2ecc71').setVisible(true);
     this.spectatorTip.setVisible(true);
@@ -204,6 +344,7 @@ export class UIManager {
       this.taskListHeader.setVisible(false);
       this.taskItem1.setVisible(false);
       this.taskItem2.setVisible(false);
+      this.taskItem3.setVisible(false);
       this.spectatorBanner.setVisible(false);
       this.spectatorTip.setVisible(false);
       this.attackCooldownText.setVisible(true);
@@ -232,19 +373,54 @@ export class UIManager {
     this.spectatorBanner.setVisible(false);
     this.spectatorTip.setVisible(false);
 
+    // Live Waypoint Tracker to ALL powered exit gates
+    if (this.scene.taskCompleted && this.scene.activeDoors && this.scene.activeDoors.length > 0) {
+      const doorInfos = this.scene.activeDoors.map(d => {
+        const dist = Phaser.Math.Distance.Between(this.scene.player.x, this.scene.player.y, d.x, d.y);
+        const distM = Math.round(dist / 20);
+        const angle = Phaser.Math.Angle.Between(this.scene.player.x, this.scene.player.y, d.x, d.y);
+        const deg = Phaser.Math.RadToDeg(angle);
+        let arrow = '➔';
+        if (deg >= -45 && deg <= 45) arrow = '🠊 (EAST)';
+        else if (deg > 45 && deg < 135) arrow = '🠋 (SOUTH)';
+        else if (deg >= 135 || deg <= -135) arrow = '🠈 (WEST)';
+        else arrow = '🠉 (NORTH)';
+        return { door: d, dist, distM, arrow };
+      });
+
+      doorInfos.sort((a, b) => a.dist - b.dist);
+
+      if (doorInfos.length >= 1) {
+        const d1 = doorInfos[0];
+        this.taskItem2.setText(`[!] ${d1.door.name.toUpperCase()} [${d1.distM}m ${d1.arrow}] *CLOSEST*`)
+          .setColor('#00ff88')
+          .setVisible(true);
+      }
+      if (doorInfos.length >= 2) {
+        const d2 = doorInfos[1];
+        this.taskItem3.setText(`[!] ${d2.door.name.toUpperCase()} [${d2.distM}m ${d2.arrow}]`)
+          .setColor('#2ecc71')
+          .setVisible(true);
+      } else {
+        this.taskItem3.setVisible(false);
+      }
+    } else {
+      this.taskItem3.setVisible(false);
+    }
+
     // Stamina Bar
     this.hud.fillStyle(0x222226, 0.8);
-    this.hud.fillRect(24, 106, 140, 9);
+    this.hud.fillRect(24, 114, 140, 9);
     const stamColor = playerController.isExhausted ? 0xe74c3c : 0x2ecc71;
     this.hud.fillStyle(stamColor, 1.0);
-    this.hud.fillRect(24, 106, (playerController.stamina / playerController.maxStamina) * 140, 9);
+    this.hud.fillRect(24, 114, (playerController.stamina / playerController.maxStamina) * 140, 9);
 
     // Anxiety Bar
     this.hud.fillStyle(0x222226, 0.8);
-    this.hud.fillRect(24, 122, 140, 9);
+    this.hud.fillRect(24, 128, 140, 9);
     const anxColor = playerController.anxiety > 75 ? 0xe74c3c : 0x9b59b6;
     this.hud.fillStyle(anxColor, 1.0);
-    this.hud.fillRect(24, 122, (playerController.anxiety / playerController.maxAnxiety) * 140, 9);
+    this.hud.fillRect(24, 128, (playerController.anxiety / playerController.maxAnxiety) * 140, 9);
 
     this.updateHeartbeat(dt);
   }

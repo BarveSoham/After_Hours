@@ -48,14 +48,9 @@ class MainScene extends Phaser.Scene {
     this.obstacles = this.physics.add.staticGroup();
     this.createFacilityWalls();
 
-    // 3. Exit Door (East Chamber)
-    this.exitDoor = this.add.rectangle(1840, 750, 60, 120, 0x444444);
-    this.exitDoorText = this.add.text(1840, 750, 'EXIT\n[LOCKED]', {
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      align: 'center',
-      color: '#ff4444'
-    }).setOrigin(0.5);
+    // 3. Dynamic Exit Doors (stored in activeDoors and populated on match start)
+    this.activeDoors = [];
+    this.isPaused = false;
 
     // 4. Terminal
     this.keycardSprite = this.add.rectangle(0, 0, 26, 18, 0xf1c40f).setVisible(false);
@@ -87,7 +82,7 @@ class MainScene extends Phaser.Scene {
 
     // 9. Hunter attack click
     this.input.on('pointerdown', (pointer) => {
-      if (this.ui.isGameOverVisible) return;
+      if (this.ui.isGameOverVisible || this.isPaused) return;
 
       if (this.role === 'hunter' && this.isMatchActive && this.canAttack) {
         this.canAttack = false;
@@ -100,143 +95,61 @@ class MainScene extends Phaser.Scene {
     });
 
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
     // 10. Wire HTML & Return-to-Lobby controls
     this.setupHTMLMenuBindings();
   }
 
-  returnToLobby() {
-    this.isMatchActive = false;
-    this.player.body.setVelocity(0);
-    this.ui.hideGameOver();
-    this.ui.heartbeatVignette.clear();
-
-    const menuLayer = document.getElementById('menu-layer');
-    const inGameLobbyBtn = document.getElementById('btnInGameLobbyReturn');
-
-    if (inGameLobbyBtn) inGameLobbyBtn.classList.add('hidden');
-    if (menuLayer) {
-      menuLayer.style.opacity = '1';
-      menuLayer.style.pointerEvents = 'auto';
+  setInGameCursor(visible) {
+    const style = visible ? 'default' : 'none';
+    if (this.game && this.game.canvas) {
+      this.game.canvas.style.cursor = style;
     }
-
-    const modalLobby = document.getElementById('modalLobby');
-    if (modalLobby) {
-      modalLobby.classList.remove('hidden');
-      setTimeout(() => modalLobby.classList.remove('opacity-0'), 10);
+    const container = document.getElementById('game-container');
+    if (container) {
+      container.style.cursor = style;
     }
   }
 
+  togglePause(forceState) {
+    if (!this.isMatchActive || this.ui.isGameOverVisible) return;
+    this.isPaused = (forceState !== undefined) ? forceState : !this.isPaused;
+
+    if (this.isPaused) {
+      if (this.isChanneling) {
+        this.isChanneling = false;
+        this.channelProgress = 0;
+        this.ui.setChannelProgress(false);
+        this.socket.emit('cancelChanneling');
+      }
+      this.player.body.setVelocity(0);
+      this.ui.showPause();
+      this.setInGameCursor(true);
+    } else {
+      this.ui.hidePause();
+      this.setInGameCursor(false);
+    }
+  }
+
+  returnToLobby() {
+    this.isMatchActive = false;
+    this.isPaused = false;
+    this.ui.hidePause();
+    this.setInGameCursor(true);
+    this.player.body.setVelocity(0);
+    this.ui.hideGameOver();
+    this.ui.heartbeatVignette.clear();
+    window.location.href = '/mainscreen/index.html';
+  }
+
   setupHTMLMenuBindings() {
-    const btnPlayMain = document.getElementById('btnPlayMain');
-    const btnOpenCodex = document.getElementById('btnOpenCodex');
-    const btnOpenSettings = document.getElementById('btnOpenSettings');
-    const btnGenRoom = document.getElementById('btnGenRoom');
-    const btnJoinRoom = document.getElementById('btnJoinRoom');
-    const btnToggleReady = document.getElementById('btnToggleReady');
-    const btnCommenceWoods = document.getElementById('btnCommenceWoods');
-    const btnInGameLobbyReturn = document.getElementById('btnInGameLobbyReturn');
-    const inputWandererName = document.getElementById('inputWandererName');
-    const inputRoomCode = document.getElementById('inputRoomCode');
-    const rosterContainer = document.getElementById('rosterContainer');
-    const slotPlayerCount = document.getElementById('slotPlayerCount');
-    const menuLayer = document.getElementById('menu-layer');
-    const descentOverlay = document.getElementById('descentOverlay');
+    // Support URL parameters (?room=XYZ&name=MyName)
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialName = urlParams.get('name') || localStorage.getItem('afterHoursPlayerName') || 'Wanderer';
+    const initialRoom = (urlParams.get('room') || 'AFH-409').toUpperCase();
 
-    const openModal = (id) => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.classList.remove('hidden');
-        setTimeout(() => el.classList.remove('opacity-0'), 10);
-      }
-    };
-
-    const closeModal = (id) => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.classList.add('opacity-0');
-        setTimeout(() => el.classList.add('hidden'), 300);
-      }
-    };
-
-    btnPlayMain?.addEventListener('click', () => openModal('modalLobby'));
-    btnOpenCodex?.addEventListener('click', () => openModal('modalCodex'));
-    btnOpenSettings?.addEventListener('click', () => openModal('modalSettings'));
-
-    btnInGameLobbyReturn?.addEventListener('click', () => {
-      this.returnToLobby();
-    });
-
-    document.querySelectorAll('.modal-close').forEach(btn => {
-      btn.addEventListener('click', () => closeModal(btn.getAttribute('data-target')));
-    });
-
-    btnGenRoom?.addEventListener('click', () => {
-      const prefixes = ['WOODS', 'MIST', 'BRAMBLE', 'RAVEN', 'CURSE'];
-      const p = prefixes[Math.floor(Math.random() * prefixes.length)];
-      const n = Math.floor(Math.random() * 89 + 10);
-      inputRoomCode.value = `${p}-${n}`;
-    });
-
-    btnJoinRoom?.addEventListener('click', () => {
-      const name = inputWandererName.value.trim() || 'Lost_Seeker';
-      const room = inputRoomCode.value.trim().toUpperCase() || 'WOODS-1';
-      this.socket.emit('joinRoom', { name, roomCode: room });
-    });
-
-    btnToggleReady?.addEventListener('click', () => {
-      this.socket.emit('toggleReady');
-    });
-
-    btnCommenceWoods?.addEventListener('click', () => {
-      this.socket.emit('startMatchRequest');
-    });
-
-    this.socket.on('lobbyRosterUpdate', (data) => {
-      if (slotPlayerCount) slotPlayerCount.textContent = data.players.length;
-      if (rosterContainer) {
-        rosterContainer.innerHTML = '';
-        data.players.forEach((p, idx) => {
-          const isHost = (p.id === data.hostId);
-          const card = document.createElement('div');
-          card.className = "flex items-center justify-between p-3 bg-[#02090b] border border-teal-900/60 hover:border-teal-700/80 rounded-xl transition";
-          card.innerHTML = `
-            <div class="flex items-center space-x-3">
-              <span class="w-3 h-3 rounded-full ${p.ready ? 'bg-[#4fffe3] shadow-[0_0_10px_#4fffe3]' : 'bg-amber-400'}"></span>
-              <div>
-                <div class="flex items-center space-x-2">
-                  <span class="font-codex text-sm text-white font-bold">${p.name}</span>
-                  ${isHost ? '<span class="text-[9px] font-cinzel px-2 py-0.5 bg-teal-950 text-[#4fffe3] border border-teal-700/60 rounded uppercase font-bold">HOST</span>' : ''}
-                </div>
-                <span class="text-[10px] font-cinzel text-slate-500">CHAMBER SEAT 0${idx + 1}</span>
-              </div>
-            </div>
-            <span class="font-codex text-xs font-bold px-3 py-1 rounded-md ${p.ready ? 'bg-teal-950/80 text-[#4fffe3] border border-teal-800/80' : 'bg-amber-950/40 text-amber-400 border border-amber-900/40'}">
-              ${p.ready ? 'READY' : 'PREPARING'}
-            </span>
-          `;
-          rosterContainer.appendChild(card);
-        });
-      }
-    });
-
-    this.socket.on('matchStarted', () => {
-      closeModal('modalLobby');
-      descentOverlay?.classList.remove('opacity-0', 'pointer-events-none');
-
-      setTimeout(() => {
-        if (menuLayer) {
-          menuLayer.style.opacity = '0';
-          menuLayer.style.pointerEvents = 'none';
-        }
-        if (btnInGameLobbyReturn) {
-          btnInGameLobbyReturn.classList.remove('hidden');
-        }
-        descentOverlay?.classList.add('opacity-0', 'pointer-events-none');
-      }, 1400);
-    });
-
-    this.socket.emit('joinRoom', { name: 'Lost_Seeker', roomCode: 'WOODS-1' });
+    this.socket.emit('joinRoom', { name: initialName, roomCode: initialRoom });
   }
 
   cycleSpectateTarget() {
@@ -321,14 +234,29 @@ class MainScene extends Phaser.Scene {
     this.lightMask.arc(0, 0, range, -halfAngle, halfAngle);
     this.lightMask.closePath();
     this.lightMask.fillPath();
+
+    // 4. Emergency beacon light circle for powered exit gates
+    this.doorLightGraphic = this.make.graphics({ add: false });
+    this.doorLightGraphic.fillStyle(0xffffff, 0.95);
+    this.doorLightGraphic.fillCircle(0, 0, 160);
   }
 
   addOtherPlayer(playerInfo) {
+    if (!playerInfo || playerInfo.id === this.socket.id) return;
+
+    // Clean up any existing otherPlayer with the same ID or name
+    this.otherPlayers.getChildren().forEach((other) => {
+      if (other.playerId === playerInfo.id || (playerInfo.name && other.playerName === playerInfo.name)) {
+        other.destroy();
+      }
+    });
+
     const isHunter = (playerInfo.role === 'hunter');
-    const color = isHunter ? 0xe74c3c : (playerInfo.alive ? 0x3498db : 0x444444);
+    const color = isHunter ? 0xe74c3c : (playerInfo.alive !== false ? 0x3498db : 0x444444);
     
     const other = this.add.rectangle(playerInfo.x, playerInfo.y, 36, 36, color).setDepth(5);
     other.playerId = playerInfo.id;
+    other.playerName = playerInfo.name;
     other.playerRole = playerInfo.role;
     other.isAlive = playerInfo.alive !== false;
     other.targetX = playerInfo.x;
@@ -338,6 +266,18 @@ class MainScene extends Phaser.Scene {
 
   update(time, delta) {
     const dt = delta / 1000;
+
+    // Toggle pause with ESC key during active match
+    if (this.isMatchActive && !this.ui.isGameOverVisible && Phaser.Input.Keyboard.JustDown(this.escKey)) {
+      this.togglePause();
+    }
+
+    if (this.isPaused) {
+      this.player.body.setVelocity(0);
+      this.playerController.update(dt, true);
+      this.ui.update(dt, this.playerController);
+      return;
+    }
 
     if (!this.canAttack) {
       this.attackCooldownTimer -= delta;
@@ -416,10 +356,12 @@ class MainScene extends Phaser.Scene {
 
     this.playerController.update(dt, this.isChanneling);
 
-    // Escape check (generous 85px radius matching server 90px limit)
-    if (this.taskCompleted && !this.hasEscaped && this.role === 'survivor') {
-      const distToDoor = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.exitDoor.x, this.exitDoor.y);
-      if (distToDoor < 85) {
+    // Escape check against ANY active dynamic exit door (generous 95px radius)
+    if (this.taskCompleted && !this.hasEscaped && this.role === 'survivor' && this.activeDoors && this.activeDoors.length > 0) {
+      const reachedDoor = this.activeDoors.some(door => {
+        return Phaser.Math.Distance.Between(this.player.x, this.player.y, door.x, door.y) < 95;
+      });
+      if (reachedDoor) {
         this.socket.emit('playerEscaped');
       }
     }
@@ -457,6 +399,15 @@ class MainScene extends Phaser.Scene {
       const screenX = this.player.x - this.cameras.main.scrollX;
       const screenY = this.player.y - this.cameras.main.scrollY;
       this.darkness.erase(this.lightMask, screenX, screenY);
+
+      // Cut emergency beacon light through the darkness at each powered exit door
+      if (this.taskCompleted && this.activeDoors && this.activeDoors.length > 0 && this.doorLightGraphic) {
+        this.activeDoors.forEach(door => {
+          const doorScreenX = door.x - this.cameras.main.scrollX;
+          const doorScreenY = door.y - this.cameras.main.scrollY;
+          this.darkness.erase(this.doorLightGraphic, doorScreenX, doorScreenY);
+        });
+      }
     }
 
     this.ui.update(dt, this.playerController);
@@ -468,7 +419,7 @@ const config = {
   parent: 'game-container',
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    autoCenter: Phaser.Scale.NO_CENTER,
     width: 1280,
     height: 720
   },

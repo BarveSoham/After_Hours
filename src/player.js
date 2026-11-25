@@ -26,6 +26,18 @@ export class PlayerController {
   }
 
   update(dt, isChanneling) {
+    // If locally paused, freeze local player but continue smoothing remote players
+    if (this.scene.isPaused) {
+      this.scene.player.body.setVelocity(0, 0);
+      this.scene.otherPlayers.getChildren().forEach((other) => {
+        if (other.targetX !== undefined) {
+          other.x = Phaser.Math.Linear(other.x, other.targetX, Math.min(1, 22 * dt));
+          other.y = Phaser.Math.Linear(other.y, other.targetY, Math.min(1, 22 * dt));
+        }
+      });
+      return;
+    }
+
     let vx = 0;
     let vy = 0;
 
@@ -66,11 +78,11 @@ export class PlayerController {
       this.scene.player.body.setVelocity(0, 0);
     }
 
-    // Smoothly glide remote players toward target positions (anti-jitter)
+    // Smoothly glide remote players toward target positions (anti-jitter, 22 * dt)
     this.scene.otherPlayers.getChildren().forEach((other) => {
       if (other.targetX !== undefined) {
-        other.x = Phaser.Math.Linear(other.x, other.targetX, Math.min(1, 15 * dt));
-        other.y = Phaser.Math.Linear(other.y, other.targetY, Math.min(1, 15 * dt));
+        other.x = Phaser.Math.Linear(other.x, other.targetX, Math.min(1, 22 * dt));
+        other.y = Phaser.Math.Linear(other.y, other.targetY, Math.min(1, 22 * dt));
       }
     });
   }

@@ -31,13 +31,23 @@ const REQUIRED_PLAYERS = 3;
 // rooms[roomCode] = { gameState, players: {}, survivorTasks: {}, hunterSocketId, hostId, activeChannels: {} }
 const rooms = {};
 
-// East Exit Chamber is from x: 1400..1990 and y: 450..1050
-const exitGate = {
-  x: 1840,
-  y: 750,
-  w: 60,
-  h: 120
-};
+// 4 Potential Exit Gate Candidates along the facility perimeters
+const ALL_EXIT_GATES = [
+  { id: 'east', name: 'East Airlock', x: 1840, y: 750, w: 60, h: 120 },
+  { id: 'west', name: 'West Bulkhead', x: 160, y: 750, w: 60, h: 120 },
+  { id: 'north', name: 'North Ventilation', x: 1000, y: 120, w: 120, h: 60 },
+  { id: 'south', name: 'South Service Dock', x: 1000, y: 1380, w: 120, h: 60 }
+];
+
+// All 6 distinct combinations of 2 gates to guarantee rotation
+const EXIT_GATE_PAIRS = [
+  [ALL_EXIT_GATES[0], ALL_EXIT_GATES[1]], // East + West
+  [ALL_EXIT_GATES[2], ALL_EXIT_GATES[3]], // North + South
+  [ALL_EXIT_GATES[0], ALL_EXIT_GATES[2]], // East + North
+  [ALL_EXIT_GATES[1], ALL_EXIT_GATES[3]], // West + South
+  [ALL_EXIT_GATES[0], ALL_EXIT_GATES[3]], // East + South
+  [ALL_EXIT_GATES[1], ALL_EXIT_GATES[2]], // West + North
+];
 
 // Distinct spawns in the surrounding outer rooms
 const SURVIVOR_SPAWNS = [
@@ -45,14 +55,28 @@ const SURVIVOR_SPAWNS = [
   { x: 300, y: 1250 }   // South-West Room
 ];
 
-// Terminals inside distinct outer rooms
-const TASK_LOCATIONS = [
-  { x: 1000, y: 240 },  // North Lab
-  { x: 1000, y: 1260 }, // South Storage
-  { x: 1700, y: 240 }   // North-East Room
+// 8 Distinct Terminal Locations distributed across all map sectors
+const ALL_TASK_LOCATIONS = [
+  { name: 'North Lab', x: 1000, y: 240 },
+  { name: 'South Storage', x: 1000, y: 1260 },
+  { name: 'North-East Archive', x: 1700, y: 240 },
+  { name: 'South-East Substation', x: 1700, y: 1260 },
+  { name: 'North-West Medical', x: 300, y: 240 },
+  { name: 'South-West Operations', x: 300, y: 1260 },
+  { name: 'Central Quad West', x: 760, y: 750 },
+  { name: 'Central Quad East', x: 1240, y: 750 }
 ];
 const CHANNEL_DURATION_MS = 1200;
 const ATTACK_COOLDOWN_MS = 1200;
+
+function fisherYatesShuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 function startMatch(roomCode) {
   const room = rooms[roomCode];
@@ -66,8 +90,30 @@ function startMatch(roomCode) {
   room.activeChannels = {};
   room.lastFootprintTime = {};
 
+  // Guarantee that the 2 exit gates change every single round
+  room.lastExitPairIndex = (typeof room.lastExitPairIndex === 'number') ? room.lastExitPairIndex : -1;
+  let nextPairIndex;
+  do {
+    nextPairIndex = Math.floor(Math.random() * EXIT_GATE_PAIRS.length);
+  } while (nextPairIndex === room.lastExitPairIndex && EXIT_GATE_PAIRS.length > 1);
+
+  room.lastExitPairIndex = nextPairIndex;
+  const chosenPair = EXIT_GATE_PAIRS[nextPairIndex];
+  // Randomly alternate which gate is primary vs secondary
+  room.activeExitGates = (Math.random() > 0.5)
+    ? [chosenPair[0], chosenPair[1]]
+    : [chosenPair[1], chosenPair[0]];
+
+  // Shuffle terminal locations with unbiased Fisher-Yates
+  const shuffledTasks = fisherYatesShuffle(ALL_TASK_LOCATIONS);
+
   if (playerIds.length === 1) {
-    // Solo playtest mode: player is survivor so they can test mechanics & escape
+    // Solo playtest mode: rotate task location each round
+    room.lastTaskIndex = (typeof room.lastTaskIndex === 'number')
+      ? (room.lastTaskIndex + 1) % ALL_TASK_LOCATIONS.length
+      : Math.floor(Math.random() * ALL_TASK_LOCATIONS.length);
+    const soloTask = ALL_TASK_LOCATIONS[room.lastTaskIndex];
+
     room.hunterSocketId = null;
     const id = playerIds[0];
     room.players[id].role = 'survivor';
@@ -78,13 +124,18 @@ function startMatch(roomCode) {
     room.players[id].x = SURVIVOR_SPAWNS[0].x;
     room.players[id].y = SURVIVOR_SPAWNS[0].y;
     room.survivorTasks[id] = {
-      x: TASK_LOCATIONS[0].x,
-      y: TASK_LOCATIONS[0].y,
+      x: soloTask.x,
+      y: soloTask.y,
       completed: false
     };
   } else {
-    const hunterIndex = Math.floor(Math.random() * playerIds.length);
-    room.hunterSocketId = playerIds[hunterIndex];
+    // Hunter selection rotation: avoid choosing the same hunter consecutively
+    room.lastHunterSocketId = room.lastHunterSocketId || null;
+    const candidates = playerIds.filter(id => id !== room.lastHunterSocketId);
+    const eligible = candidates.length > 0 ? candidates : playerIds;
+    const hunterIndex = Math.floor(Math.random() * eligible.length);
+    room.hunterSocketId = eligible[hunterIndex];
+    room.lastHunterSocketId = room.hunterSocketId;
 
     let survivorCount = 0;
 
@@ -104,7 +155,7 @@ function startMatch(roomCode) {
         room.players[id].x = spawn.x;
         room.players[id].y = spawn.y;
 
-        const loc = TASK_LOCATIONS[survivorCount % TASK_LOCATIONS.length];
+        const loc = shuffledTasks[survivorCount % shuffledTasks.length];
         room.survivorTasks[id] = {
           x: loc.x,
           y: loc.y,
@@ -118,9 +169,12 @@ function startMatch(roomCode) {
   io.to(roomCode).emit('matchStarted', {
     players: room.players,
     survivorTasks: room.survivorTasks,
-    exitGate
+    exitGates: room.activeExitGates,
+    exitGate: room.activeExitGates[0]
   });
-  console.log(`[!] Match started in [${roomCode}] with ${playerIds.length} player(s). Hunter: ${room.hunterSocketId || 'None (Solo Test)'}`);
+  const exitNames = room.activeExitGates.map(g => g.name).join(' & ');
+  console.log(`[!] Match started in [${roomCode}] with ${playerIds.length} player(s). Hunter: ${room.hunterSocketId || 'None (Solo Test)'}. Exits: ${exitNames}`);
+  logToFile(`Match started in [${roomCode}]. Exits: ${exitNames}. Task: ${playerIds.length === 1 ? ALL_TASK_LOCATIONS[room.lastTaskIndex].name : 'Multi'}`);
 }
 
 function checkMatchEndCondition(roomCode) {
@@ -170,35 +224,105 @@ io.on('connection', (socket) => {
         players: {},
         survivorTasks: {},
         hunterSocketId: null,
+        lastHunterSocketId: null,
+        activeExitGates: [],
         activeChannels: {},
         lastFootprintTime: {}
       };
     }
 
     const room = rooms[currentRoom];
-    room.players[socket.id] = {
-      id: socket.id,
-      name: name || 'Lost_Seeker',
-      x: 1000,
-      y: 750,
-      angle: 0,
-      role: 'waiting',
-      alive: true,
-      escaped: false,
-      ready: true,
-      taskCompleted: false,
-      lastAttackTime: 0
-    };
 
-    console.log(`[+] ${name} (${socket.id}) joined [${currentRoom}]`);
+    if (room.gameState === 'in_progress') {
+      // Reconnecting or joining midgame
+      room.players[socket.id] = {
+        id: socket.id,
+        name: name || 'Lost_Seeker',
+        x: 1000,
+        y: 750,
+        angle: 0,
+        role: 'survivor',
+        alive: true,
+        escaped: false,
+        ready: true,
+        taskCompleted: false,
+        lastAttackTime: 0
+      };
 
-    // Broadcast room roster
-    io.to(currentRoom).emit('lobbyRosterUpdate', {
-      roomCode: currentRoom,
-      hostId: room.hostId,
-      players: Object.values(room.players),
-      gameState: room.gameState
-    });
+      console.log(`[Midgame Join] ${name} (${socket.id}) connected to in-progress [${currentRoom}]`);
+
+      socket.emit('matchStarted', {
+        players: room.players,
+        survivorTasks: room.survivorTasks,
+        exitGates: room.activeExitGates,
+        exitGate: room.activeExitGates[0]
+      });
+
+      socket.to(currentRoom).emit('playerJoinedMidgame', room.players[socket.id]);
+    } else {
+      room.players[socket.id] = {
+        id: socket.id,
+        name: name || 'Lost_Seeker',
+        x: 1000,
+        y: 750,
+        angle: 0,
+        role: 'waiting',
+        alive: true,
+        escaped: false,
+        ready: true,
+        taskCompleted: false,
+        lastAttackTime: 0
+      };
+
+      console.log(`[+] ${name} (${socket.id}) joined [${currentRoom}] (State: ${room.gameState})`);
+
+      // If room is launching from lobby and all expected players have arrived:
+      if (room.gameState === 'launching') {
+        const joinedCount = Object.keys(room.players).length;
+        if (joinedCount >= (room.expectedCount || 1)) {
+          if (room.launchTimeout) {
+            clearTimeout(room.launchTimeout);
+            room.launchTimeout = null;
+          }
+          console.log(`[Launch] All ${joinedCount} players arrived in [${currentRoom}]. Starting match!`);
+          setTimeout(() => startMatch(currentRoom), 250);
+        }
+      } else {
+        io.to(currentRoom).emit('lobbyRosterUpdate', {
+          roomCode: currentRoom,
+          hostId: room.hostId,
+          players: Object.values(room.players),
+          gameState: room.gameState
+        });
+      }
+    }
+  });
+
+  socket.on('commenceMatchRequest', () => {
+    if (!currentRoom || !rooms[currentRoom]) return;
+    const room = rooms[currentRoom];
+    if (socket.id !== room.hostId) return;
+
+    room.expectedCount = Object.keys(room.players).length;
+    room.gameState = 'launching';
+    room.players = {}; // Reset player sockets for fresh game.html connections!
+    room.hunterSocketId = null;
+
+    console.log(`[Lobby] Host commenced match in [${currentRoom}]. Expecting ${room.expectedCount} player(s).`);
+
+    // Safety timeout: if someone didn't join within 4 seconds, start with whoever arrived
+    if (room.launchTimeout) clearTimeout(room.launchTimeout);
+    room.launchTimeout = setTimeout(() => {
+      if (rooms[currentRoom] && rooms[currentRoom].gameState === 'launching') {
+        const count = Object.keys(rooms[currentRoom].players).length;
+        console.log(`[Timeout Check] Launching with ${count} arrived player(s) in [${currentRoom}]`);
+        if (count >= 1) {
+          startMatch(currentRoom);
+        }
+      }
+    }, 4000);
+
+    io.to(currentRoom).emit('commenceDescent', { roomCode: currentRoom });
   });
 
   socket.on('toggleReady', () => {
@@ -322,12 +446,14 @@ io.on('connection', (socket) => {
 
       if (!p || p.role !== 'survivor' || !p.alive || !p.taskCompleted || p.escaped || room.gameState !== 'in_progress') return;
 
-      const dist = Math.hypot(p.x - exitGate.x, p.y - exitGate.y);
-      if (dist < 90) {
+      const gates = (room.activeExitGates && room.activeExitGates.length > 0) ? room.activeExitGates : ALL_EXIT_GATES.slice(0, 2);
+      const usedGate = gates.find(gate => Math.hypot(p.x - gate.x, p.y - gate.y) < 105);
+
+      if (usedGate) {
         p.escaped = true;
         socket.emit('youEscaped');
         socket.to(currentRoom).emit('survivorEscapedNotification', { id: socket.id });
-        logToFile(`Survivor ${socket.id} escaped from [${currentRoom}]`);
+        logToFile(`Survivor ${socket.id} escaped via [${usedGate.name}] from [${currentRoom}]`);
         checkMatchEndCondition(currentRoom);
       }
     } catch (err) {
@@ -387,10 +513,34 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('kickPlayer', ({ targetId }) => {
+    try {
+      if (!currentRoom || !rooms[currentRoom]) return;
+      const room = rooms[currentRoom];
+      if (socket.id === room.hostId && targetId !== socket.id) {
+        io.to(targetId).emit('kickedFromLobby');
+        if (room.players) delete room.players[targetId];
+        io.to(currentRoom).emit('lobbyRosterUpdate', {
+          roomCode: currentRoom,
+          hostId: room.hostId,
+          players: Object.values(room.players).filter(p => p.connected !== false),
+          gameState: room.gameState
+        });
+      }
+    } catch (err) {
+      console.error('[Error in kickPlayer]', err);
+    }
+  });
+
   socket.on('disconnect', () => {
     try {
       if (!currentRoom || !rooms[currentRoom]) return;
       const room = rooms[currentRoom];
+
+      // While launching from lobby, sockets disconnect as pages transition - do not delete room
+      if (room.gameState === 'launching') {
+        return;
+      }
 
       if (room.players) delete room.players[socket.id];
       if (room.survivorTasks) delete room.survivorTasks[socket.id];
@@ -410,6 +560,7 @@ io.on('connection', (socket) => {
 
       const remaining = room.players ? Object.keys(room.players).length : 0;
       if (remaining === 0) {
+        if (room.launchTimeout) clearTimeout(room.launchTimeout);
         delete rooms[currentRoom];
       } else {
         io.to(currentRoom).emit('lobbyRosterUpdate', {

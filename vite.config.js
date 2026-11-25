@@ -1,16 +1,14 @@
 import { defineConfig } from 'vite';
-<<<<<<< HEAD
-=======
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
->>>>>>> 70a8a884783de578fca7e45f1224c476230ab5cb
 
 export default defineConfig({
   server: {
+    host: true,
     port: 5173,
     proxy: {
       '/socket.io': {
@@ -18,21 +16,17 @@ export default defineConfig({
         ws: true
       }
     }
-<<<<<<< HEAD
-  }
-});
-=======
   },
   build: {
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        howToPlay: resolve(__dirname, 'how_to_play.html'),
-        settings: resolve(__dirname, 'settings.html'),
-        quit: resolve(__dirname, 'quit_screen.html'),
-        game: resolve(__dirname, 'game.html')
+        mainscreen: resolve(__dirname, 'mainscreen/index.html'),
+        game: resolve(__dirname, 'game.html'),
+        howToPlay: resolve(__dirname, 'mainscreen/how-to-play.html'),
+        settings: resolve(__dirname, 'mainscreen/settings.html'),
+        quit: resolve(__dirname, 'mainscreen/quit.html')
       }
     }
   }
 });
->>>>>>> 70a8a884783de578fca7e45f1224c476230ab5cb
