@@ -267,7 +267,7 @@
       <div class="mt-14 flex items-center gap-12">
         <button onmouseenter="playChime('hover')" onclick="saveSettings()"
           class="float-link font-eerie text-xl tracking-[0.14em] text-[#dce7f5]">
-          Save &amp; Close
+          Save &amp; Exit
         </button>
         <a href="index.html" onmouseenter="playChime('hover')" onclick="playChime('select')"
           class="float-link font-eerie text-xl tracking-[0.14em] opacity-70">
@@ -386,8 +386,10 @@
             Settings Saved
           </div>
         `;
-        setTimeout(() => { container.innerHTML = ''; }, 1800);
       }
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 350);
     }
 
     function initAtmosphere() {

@@ -23,7 +23,9 @@ const server = http.createServer(app);
 app.use(express.static(path.join(__dirname, 'dist')));
 
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: { origin: '*', methods: ['GET', 'POST'] },
+  pingInterval: 10000,
+  pingTimeout: 5000
 });
 
 const REQUIRED_PLAYERS = 3;
@@ -213,7 +215,7 @@ function checkMatchEndCondition(roomCode) {
 io.on('connection', (socket) => {
   let currentRoom = null;
 
-  socket.on('joinRoom', ({ name, roomCode }) => {
+  socket.on('joinRoom', ({ name, roomCode, asLobby }) => {
     currentRoom = (roomCode || 'WOODS-1').toUpperCase().trim();
     socket.join(currentRoom);
 
@@ -233,7 +235,22 @@ io.on('connection', (socket) => {
 
     const room = rooms[currentRoom];
 
-    if (room.gameState === 'in_progress') {
+    // If joining as lobby or if game already ended or returning to lobby, check if room should be reset to waiting
+    if (asLobby || room.gameState === 'ended' || room.gameState === 'returning_to_lobby') {
+      const anyActiveInGame = Object.values(room.players).some(p => p.role === 'survivor' || p.role === 'hunter');
+      if (!anyActiveInGame || room.gameState === 'ended' || room.gameState === 'returning_to_lobby') {
+        room.gameState = 'waiting';
+        room.hunterSocketId = null;
+        room.survivorTasks = {};
+        room.activeChannels = {};
+        if (room.lobbyReturnTimeout) {
+          clearTimeout(room.lobbyReturnTimeout);
+          room.lobbyReturnTimeout = null;
+        }
+      }
+    }
+
+    if (!asLobby && room.gameState === 'in_progress') {
       // Reconnecting or joining midgame
       room.players[socket.id] = {
         id: socket.id,
@@ -273,6 +290,11 @@ io.on('connection', (socket) => {
         taskCompleted: false,
         lastAttackTime: 0
       };
+
+      // Ensure valid hostId
+      if (!room.hostId || !room.players[room.hostId]) {
+        room.hostId = socket.id;
+      }
 
       console.log(`[+] ${name} (${socket.id}) joined [${currentRoom}] (State: ${room.gameState})`);
 
@@ -552,31 +574,72 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {
+  socket.on('returnRoomToLobby', () => {
+    if (!currentRoom || !rooms[currentRoom]) return;
+    const room = rooms[currentRoom];
+    room.gameState = 'returning_to_lobby';
+    room.hunterSocketId = null;
+    room.survivorTasks = {};
+    room.activeChannels = {};
+    Object.values(room.players).forEach(p => {
+      p.role = 'waiting';
+      p.ready = true;
+      p.alive = true;
+      p.escaped = false;
+    });
+
+    if (room.lobbyReturnTimeout) clearTimeout(room.lobbyReturnTimeout);
+    room.lobbyReturnTimeout = setTimeout(() => {
+      if (rooms[currentRoom] && rooms[currentRoom].gameState === 'returning_to_lobby') {
+        rooms[currentRoom].gameState = 'waiting';
+        const count = Object.keys(rooms[currentRoom].players).length;
+        if (count === 0) {
+          delete rooms[currentRoom];
+        }
+      }
+    }, 6000);
+
+    io.to(currentRoom).emit('lobbyRosterUpdate', {
+      roomCode: currentRoom,
+      hostId: room.hostId,
+      players: Object.values(room.players),
+      gameState: 'waiting'
+    });
+
+    // Make EVERY player currently in the match return to the lobby!
+    io.to(currentRoom).emit('returnToLobby', { roomCode: currentRoom });
+  });
+
+  function handlePlayerExit(sock, reason) {
     try {
       if (!currentRoom || !rooms[currentRoom]) return;
       const room = rooms[currentRoom];
 
-      // While launching from lobby, sockets disconnect as pages transition - do not delete room
-      if (room.gameState === 'launching') {
+      // While launching from lobby or returning to lobby, sockets disconnect as pages transition - do not delete room
+      if (room.gameState === 'launching' || room.gameState === 'returning_to_lobby') {
         return;
       }
 
-      if (room.players) delete room.players[socket.id];
-      if (room.survivorTasks) delete room.survivorTasks[socket.id];
-      if (room.activeChannels) delete room.activeChannels[socket.id];
+      const playerInfo = room.players ? room.players[sock.id] : null;
+      const playerName = playerInfo ? playerInfo.name : null;
 
-      const wasHunter = (socket.id === room.hunterSocketId);
+      if (room.players) delete room.players[sock.id];
+      if (room.survivorTasks) delete room.survivorTasks[sock.id];
+      if (room.activeChannels) delete room.activeChannels[sock.id];
+
+      const wasHunter = (sock.id === room.hunterSocketId);
       if (wasHunter) {
         room.hunterSocketId = null;
       }
 
-      if (socket.id === room.hostId && room.players) {
+      if (sock.id === room.hostId && room.players) {
         const remainingIds = Object.keys(room.players);
         room.hostId = remainingIds.length > 0 ? remainingIds[0] : null;
       }
 
-      io.to(currentRoom).emit('playerDisconnected', socket.id);
+      // Immediately notify all other players in the room with both ID and name
+      io.to(currentRoom).emit('playerDisconnected', sock.id);
+      sock.to(currentRoom).emit('playerLeft', { id: sock.id, name: playerName });
 
       const remaining = room.players ? Object.keys(room.players).length : 0;
       if (remaining === 0) {
@@ -598,14 +661,37 @@ io.on('connection', (socket) => {
               message: 'MATCH OVER\nThe Hunter vanished into the mist!\n(Survivors Win by Default)'
             });
           } else {
-            checkMatchEndCondition(currentRoom);
+            const remainingSurvivors = Object.values(room.players).filter(p => p && p.role === 'survivor');
+            if (remainingSurvivors.length === 0) {
+              room.gameState = 'ended';
+              io.to(currentRoom).emit('gameOver', {
+                winner: 'hunter',
+                message: 'MATCH OVER\nAll wanderers abandoned or perished in the woods!'
+              });
+            } else {
+              checkMatchEndCondition(currentRoom);
+            }
           }
         }
       }
+      console.log(`[-] Player ${sock.id} (${playerName || 'Unknown'}) exited [${currentRoom}] via ${reason}`);
     } catch (err) {
-      console.error('[Error in disconnect]', err);
-      logToFile(`[Error in disconnect] ${err.message}`);
+      console.error(`[Error in handlePlayerExit (${reason})]`, err);
+      logToFile(`[Error in handlePlayerExit (${reason})] ${err.message}`);
     }
+  }
+
+  socket.on('leaveRoom', () => {
+    const rCode = currentRoom;
+    handlePlayerExit(socket, 'leaveRoom');
+    if (rCode) {
+      socket.leave(rCode);
+    }
+    currentRoom = null;
+  });
+
+  socket.on('disconnect', () => {
+    handlePlayerExit(socket, 'disconnect');
   });
 });
 

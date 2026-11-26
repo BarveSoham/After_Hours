@@ -211,11 +211,24 @@ export class NetworkManager {
       }
     });
 
-    s.on('playerDisconnected', (playerId) => {
+    const removeOtherPlayer = (data) => {
+      const targetId = (typeof data === 'object' && data?.id) ? data.id : data;
+      if (!targetId) return;
+
+      const toRemove = [];
       sc.otherPlayers.getChildren().forEach((other) => {
-        if (playerId === other.playerId) other.destroy();
+        if (other.playerId === targetId || (typeof data === 'object' && data.name && other.playerName === data.name)) {
+          toRemove.push(other);
+        }
       });
-    });
+
+      toRemove.forEach((other) => {
+        sc.otherPlayers.remove(other, true, true);
+      });
+    };
+
+    s.on('playerDisconnected', removeOtherPlayer);
+    s.on('playerLeft', removeOtherPlayer);
 
     s.on('spawnFootprint', (data) => {
       if (sc.role === 'hunter') {
@@ -348,6 +361,13 @@ export class NetworkManager {
 
       const bannerColor = data.winner === 'survivor' ? '#2ecc71' : '#e74c3c';
       sc.ui.showGameOver(data.message, bannerColor);
+    });
+
+    s.on('returnToLobby', (data) => {
+      if (data && data.roomCode) {
+        sc.currentRoomCode = data.roomCode;
+      }
+      sc.returnToLobby();
     });
   }
 

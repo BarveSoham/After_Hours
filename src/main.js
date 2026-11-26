@@ -104,6 +104,14 @@ class MainScene extends Phaser.Scene {
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
+    // Clean disconnect on tab close / reload
+    window.addEventListener('beforeunload', () => {
+      if (this.socket && this.socket.connected) {
+        this.socket.emit('leaveRoom');
+        try { this.socket.disconnect(); } catch (_) {}
+      }
+    });
+
     // 10. Wire HTML & Return-to-Lobby controls
     this.setupHTMLMenuBindings();
   }
@@ -142,7 +150,19 @@ class MainScene extends Phaser.Scene {
     }
   }
 
+  requestReturnAllToLobby() {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('returnRoomToLobby');
+    }
+    // Safety fallback: if socket or server fails to respond within 800ms, return locally
+    setTimeout(() => {
+      this.returnToLobby();
+    }, 800);
+  }
+
   returnToLobby() {
+    if (this._isReturningToLobby) return;
+    this._isReturningToLobby = true;
     this.isMatchActive = false;
     this.isPaused = false;
     this.ui.hidePause();
@@ -150,6 +170,32 @@ class MainScene extends Phaser.Scene {
     this.player.body.setVelocity(0);
     this.ui.hideGameOver();
     this.ui.heartbeatVignette.clear();
+
+    const roomCode = this.currentRoomCode || 'AFH-409';
+    const playerName = this.playerName || localStorage.getItem('afterHoursPlayerName') || 'Wanderer';
+
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('leaveRoom');
+      try { this.socket.disconnect(); } catch (_) {}
+    }
+
+    window.location.href = `/mainscreen/index.html?room=${encodeURIComponent(roomCode)}&screen=LOBBY&name=${encodeURIComponent(playerName)}`;
+  }
+
+  exitToMainMenu() {
+    this.isMatchActive = false;
+    this.isPaused = false;
+    this.ui.hidePause();
+    this.setInGameCursor(true);
+    this.player.body.setVelocity(0);
+    this.ui.hideGameOver();
+    this.ui.heartbeatVignette.clear();
+
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('leaveRoom');
+      try { this.socket.disconnect(); } catch (_) {}
+    }
+
     window.location.href = '/mainscreen/index.html';
   }
 
@@ -158,6 +204,9 @@ class MainScene extends Phaser.Scene {
     const urlParams = new URLSearchParams(window.location.search);
     const initialName = urlParams.get('name') || localStorage.getItem('afterHoursPlayerName') || 'Wanderer';
     const initialRoom = (urlParams.get('room') || 'AFH-409').toUpperCase();
+
+    this.playerName = initialName;
+    this.currentRoomCode = initialRoom;
 
     this.socket.emit('joinRoom', { name: initialName, roomCode: initialRoom });
   }
@@ -269,10 +318,14 @@ class MainScene extends Phaser.Scene {
     if (!playerInfo || playerInfo.id === this.socket.id) return;
 
     // Clean up any existing otherPlayer with the same ID or name
+    const toRemove = [];
     this.otherPlayers.getChildren().forEach((other) => {
       if (other.playerId === playerInfo.id || (playerInfo.name && other.playerName === playerInfo.name)) {
-        other.destroy();
+        toRemove.push(other);
       }
+    });
+    toRemove.forEach((other) => {
+      this.otherPlayers.remove(other, true, true);
     });
 
     const isHunter = (playerInfo.role === 'hunter');
@@ -441,8 +494,8 @@ class MainScene extends Phaser.Scene {
     if (this.role === 'hunter') {
       this.darkness.fill(0x3a0007, 0.25);
     } else {
-      // Atmospheric darkness (0.88 allows faint perception of wall silhouettes)
-      this.darkness.fill(0x050508, 0.88);
+      // Atmospheric darkness (0.79 is 10% less darkness than 0.88, allowing clearer perception of surroundings)
+      this.darkness.fill(0x050508, 0.79);
       this.lightMask.setAngle(deg);
       const screenX = this.player.x - this.cameras.main.scrollX;
       const screenY = this.player.y - this.cameras.main.scrollY;

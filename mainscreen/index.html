@@ -277,12 +277,21 @@
 
     const socket = io();
 
-    const storedName = localStorage.getItem('afterHoursPlayerName') || 'Wanderer';
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramRoom = urlParams.get('room');
+    const paramScreen = urlParams.get('screen');
+    const paramName = urlParams.get('name');
+
+    const storedName = paramName || localStorage.getItem('afterHoursPlayerName') || 'Wanderer';
+    if (paramName) {
+      localStorage.setItem('afterHoursPlayerName', paramName.slice(0, 16));
+    }
+
     const state = {
-      screen: 'MENU', // 'MENU' | 'JOIN_LOBBY' | 'LOBBY' | 'ROLE_REVEAL'
-      playerName: storedName,
+      screen: (paramScreen === 'LOBBY' && paramRoom) ? 'LOBBY' : 'MENU',
+      playerName: storedName.slice(0, 16),
       lobby: {
-        roomCode: 'AFH-409',
+        roomCode: paramRoom ? paramRoom.toUpperCase() : 'AFH-409',
         isHost: true,
         players: [],
         extraNames: ['Soren', 'Isolde', 'Rowan', 'Evelyn']
@@ -292,6 +301,13 @@
 
     socket.on('connect', () => {
       console.log(`[Socket.io Lobby] Connected! Socket ID: ${socket.id}`);
+      if (state.screen === 'LOBBY' && state.lobby.roomCode) {
+        socket.emit('joinRoom', {
+          name: state.playerName,
+          roomCode: state.lobby.roomCode,
+          asLobby: true
+        });
+      }
     });
 
     socket.on('connect_error', (err) => {
@@ -387,6 +403,14 @@
 
     function go(screenName) {
       playChime('select');
+      if (state.screen === 'LOBBY' && screenName === 'MENU') {
+        if (socket && socket.connected) {
+          socket.emit('leaveRoom');
+        }
+        try {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (_) {}
+      }
       state.screen = screenName;
       render();
     }
@@ -804,6 +828,13 @@
 
     window.onload = function () {
       initAtmosphere();
+      if (state.screen === 'LOBBY' && state.lobby.roomCode && socket && socket.connected) {
+        socket.emit('joinRoom', {
+          name: state.playerName,
+          roomCode: state.lobby.roomCode,
+          asLobby: true
+        });
+      }
       render();
     };
   </script>

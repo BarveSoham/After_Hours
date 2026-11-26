@@ -149,7 +149,7 @@ export class UIManager {
       if (!this.isGameOverVisible) return;
       sound.playClick();
       this.btnLobbyBg.setFillStyle(0x081e20);
-      this.scene.returnToLobby();
+      this.scene.requestReturnAllToLobby();
     });
   }
 
@@ -255,7 +255,7 @@ export class UIManager {
     this.btnPauseMenuBg.on('pointerdown', () => {
       if (!this.isPauseVisible) return;
       sound.playClick();
-      window.location.href = '/mainscreen/index.html';
+      this.scene.exitToMainMenu();
     });
   }
 
