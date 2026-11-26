@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { sound } from './sound.js';
+
 export class UIManager {
   constructor(scene) {
     this.scene = scene;
@@ -8,6 +10,7 @@ export class UIManager {
 
     this.smoothedDanger = 0;
     this.pulsePhase = 0;
+    this.lastHeartbeatTime = 0;
 
     this.channelBarBg = scene.add.rectangle(0, 0, 46, 7, 0x222226, 0.9).setDepth(26).setVisible(false);
     this.channelBarFill = scene.add.rectangle(0, 0, 0, 5, 0x00ff88, 1.0).setDepth(27).setVisible(false);
@@ -117,6 +120,7 @@ export class UIManager {
     });
     this.btnBg.on('pointerdown', () => {
       if (!this.isGameOverVisible) return;
+      sound.playClick();
       this.btnBg.setFillStyle(0x1e8449);
       this.scene.socket.emit('requestRestart');
     });
@@ -143,6 +147,7 @@ export class UIManager {
     });
     this.btnLobbyBg.on('pointerdown', () => {
       if (!this.isGameOverVisible) return;
+      sound.playClick();
       this.btnLobbyBg.setFillStyle(0x081e20);
       this.scene.returnToLobby();
     });
@@ -197,6 +202,7 @@ export class UIManager {
     });
     this.btnResumeBg.on('pointerdown', () => {
       if (!this.isPauseVisible) return;
+      sound.playClick();
       this.scene.togglePause(false);
     });
 
@@ -222,6 +228,7 @@ export class UIManager {
     });
     this.btnPauseLobbyBg.on('pointerdown', () => {
       if (!this.isPauseVisible) return;
+      sound.playClick();
       this.scene.returnToLobby();
     });
 
@@ -247,6 +254,7 @@ export class UIManager {
     });
     this.btnPauseMenuBg.on('pointerdown', () => {
       if (!this.isPauseVisible) return;
+      sound.playClick();
       window.location.href = '/mainscreen/index.html';
     });
   }
@@ -457,6 +465,14 @@ export class UIManager {
 
       const rawWave = (Math.sin(this.pulsePhase) + 1) * 0.5;
       const beatIntensity = Math.pow(rawWave, 1.4);
+
+      // Play audio heartbeat thump in sync with danger level (72 to 210 BPM)
+      const now = performance.now();
+      const heartbeatInterval = 1000 / (1.2 + this.smoothedDanger * 2.3);
+      if (now - this.lastHeartbeatTime >= heartbeatInterval) {
+        this.lastHeartbeatTime = now;
+        sound.playHeartbeat(this.smoothedDanger);
+      }
 
       const baseAlpha = this.smoothedDanger * 0.25;
       const peakAlpha = this.smoothedDanger * 0.65;

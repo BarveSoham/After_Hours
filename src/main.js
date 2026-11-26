@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { PlayerController } from './player.js';
 import { UIManager } from './ui.js';
 import { NetworkManager } from './network.js';
+import { sound } from './sound.js';
 
 class MainScene extends Phaser.Scene {
   constructor() {
@@ -82,8 +83,9 @@ class MainScene extends Phaser.Scene {
     this.ui = new UIManager(this);
     this.network = new NetworkManager(this);
 
-    // 9. Hunter attack click
+    // 9. Hunter attack click & user gesture audio unlock
     this.input.on('pointerdown', (pointer) => {
+      sound.init();
       if (this.ui.isGameOverVisible || this.isPaused) return;
 
       if (this.role === 'hunter' && this.isMatchActive && this.canAttack) {
@@ -91,10 +93,13 @@ class MainScene extends Phaser.Scene {
         this.attackCooldownTimer = this.attackCooldownDuration;
         this.socket.emit('hunterAttack');
         this.cameras.main.shake(80, 0.005);
+        sound.playAttack();
       } else if (!this.isAlive || this.hasEscaped) {
         this.cycleSpectateTarget();
       }
     });
+
+    this.input.keyboard.on('keydown', () => sound.init());
 
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
@@ -116,6 +121,7 @@ class MainScene extends Phaser.Scene {
 
   togglePause(forceState) {
     if (!this.isMatchActive || this.ui.isGameOverVisible) return;
+    sound.playClick();
     this.isPaused = (forceState !== undefined) ? forceState : !this.isPaused;
 
     if (this.isPaused) {
@@ -352,12 +358,14 @@ class MainScene extends Phaser.Scene {
             this.channelProgress = 0;
             this.hasSentFinish = false;
             this.channelConfirmed = false;
+            sound.playChannelStart();
             // Immediate movement packet so server has exact stop coordinates
             this.network.sendMovement(this.player.x, this.player.y, deg, false);
             this.socket.emit('startChanneling', { x: this.player.x, y: this.player.y });
           }
 
           this.channelProgress += delta;
+          sound.playChannelTick();
           const ratio = Math.min(1, this.channelProgress / this.channelDuration);
           this.ui.setChannelProgress(true, ratio, this.player.x, this.player.y);
 
@@ -373,6 +381,7 @@ class MainScene extends Phaser.Scene {
             this.channelProgress = 0;
             this.hasSentFinish = false;
             this.channelConfirmed = false;
+            sound.playChannelCancel();
             this.ui.setChannelProgress(false);
             this.socket.emit('cancelChanneling');
           }
@@ -384,6 +393,7 @@ class MainScene extends Phaser.Scene {
           this.channelProgress = 0;
           this.hasSentFinish = false;
           this.channelConfirmed = false;
+          sound.playChannelCancel();
           this.ui.setChannelProgress(false);
           this.socket.emit('cancelChanneling');
         }

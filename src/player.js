@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { sound } from './sound.js';
+
 export class PlayerController {
   constructor(scene) {
     this.scene = scene;
@@ -74,6 +76,24 @@ export class PlayerController {
     if (isMoving && !isChanneling) {
       const moveVec = new Phaser.Math.Vector2(vx, vy).normalize().scale(currentSpeed);
       this.scene.player.body.setVelocity(moveVec.x, moveVec.y);
+
+      // Play procedural footsteps during active gameplay
+      if (this.scene.isMatchActive && this.scene.isAlive && !this.scene.hasEscaped) {
+        // Context-aware surface detection
+        if (this.scene.player.x >= 1400 && this.scene.player.y <= 500) {
+          sound.setSurface('wood');
+        } else if (this.scene.player.x <= 500 && this.scene.player.y >= 1000) {
+          sound.setSurface('gravel');
+        } else {
+          sound.setSurface('stone');
+        }
+
+        if (this.isSprinting) {
+          sound.playRunStep();
+        } else {
+          sound.playWalkStep();
+        }
+      }
     } else {
       this.scene.player.body.setVelocity(0, 0);
     }

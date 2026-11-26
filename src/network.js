@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { sound } from './sound.js';
 
 const DEFAULT_EXIT_GATES = [
   { id: 'east', name: 'East Airlock', x: 1840, y: 750, w: 60, h: 120 },
@@ -19,6 +20,7 @@ export class NetworkManager {
     const sc = this.scene;
 
     s.on('matchStarted', (data) => {
+      sound.playMatchStart();
       sc.ui.hideGameOver();
       sc.isAlive = true;
       sc.hasEscaped = false;
@@ -239,10 +241,13 @@ export class NetworkManager {
     });
 
     s.on('hunterHitEffect', () => {
+      sound.playHit();
       sc.cameras.main.flash(200, 180, 0, 0);
     });
 
     s.on('personalTaskDone', () => {
+      sound.playTaskComplete();
+      sound.playGateUnlocked();
       sc.taskCompleted = true;
       sc.isChanneling = false;
       sc.channelProgress = 0;
@@ -289,6 +294,7 @@ export class NetworkManager {
     });
 
     s.on('youEscaped', () => {
+      sound.playVictory();
       sc.hasEscaped = true;
       sc.setInGameCursor(true);
       sc.player.setVisible(false);
@@ -304,6 +310,7 @@ export class NetworkManager {
 
     s.on('survivorEliminated', ({ victimId }) => {
       if (s.id === victimId) {
+        sound.playDead();
         sc.isAlive = false;
         sc.setInGameCursor(true);
         sc.isChanneling = false;
@@ -315,6 +322,7 @@ export class NetworkManager {
         sc.ui.showEliminated();
         sc.cycleSpectateTarget();
       } else {
+        sound.playScream();
         sc.otherPlayers.getChildren().forEach((other) => {
           if (other.playerId === victimId) {
             other.setFillStyle(0x444444);
@@ -325,6 +333,12 @@ export class NetworkManager {
     });
 
     s.on('gameOver', (data) => {
+      if (data.winner === sc.role) {
+        sound.playVictory();
+      } else {
+        sound.playGameOver();
+      }
+
       sc.isMatchActive = false;
       sc.isPaused = false;
       sc.setInGameCursor(true);

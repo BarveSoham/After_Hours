@@ -6,9 +6,11 @@ class SoundManager {
     this.ctx = null;
     this.masterGain = null;
     this.noiseBuffer = null;
-    this.volume = 0.72; // Matches default 72% UI slider
+    const savedVol = (typeof localStorage !== 'undefined') ? localStorage.getItem('afterHoursVolume') : null;
+    this.volume = savedVol !== null ? Math.max(0, Math.min(1, Number(savedVol) / 100)) : 0.70;
     this.isMuted = false;
     this.lastStepTime = 0;
+    this.lastChannelTick = 0;
     this.stepIsLeft = true;
     this.surface = 'stone'; // 'stone' | 'wood' | 'gravel'
   }
@@ -352,15 +354,96 @@ class SoundManager {
     });
   }
 
-  // 6. HUNTER NEARBY HEARTBEAT
-  playHeartbeat() {
-    this._playTone(68, 36, 0.16, 'sine', 0.38, 0);
-    this._playTone(62, 34, 0.22, 'sine', 0.32, 0.18);
+  // 6. HUNTER NEARBY HEARTBEAT (Dynamic intensity based on danger proximity)
+  playHeartbeat(intensity = 1.0) {
+    const scale = Math.max(0.2, Math.min(1.2, intensity));
+    this._playTone(68, 36, 0.16, 'sine', 0.40 * scale, 0);
+    this._playTone(62, 34, 0.22, 'sine', 0.34 * scale, 0.18);
   }
 
   // 7. UI BUTTON CLICK
   playClick() {
     this._playTone(420, 260, 0.06, 'sine', 0.12, 0);
+  }
+
+  // 8. HUNTER ATTACK SWING
+  playAttack() {
+    this._playNoiseBurst({
+      delay: 0,
+      duration: 0.22,
+      filterType: 'bandpass',
+      freq: 1800,
+      endFreq: 340,
+      Q: 1.2,
+      gainPeak: 0.38
+    });
+    this._playTone(280, 75, 0.20, 'sawtooth', 0.22, 0);
+  }
+
+  // 9. HUNTER HIT IMPACT
+  playHit() {
+    this._playBodyThump({
+      delay: 0,
+      startFreq: 180,
+      endFreq: 35,
+      duration: 0.18,
+      gainPeak: 0.65
+    });
+    this._playNoiseBurst({
+      delay: 0,
+      duration: 0.14,
+      filterType: 'bandpass',
+      freq: 950,
+      Q: 2.0,
+      gainPeak: 0.40
+    });
+  }
+
+  // 10. TERMINAL BYPASS INITIATED
+  playChannelStart() {
+    this._playTone(440, 660, 0.10, 'sine', 0.18, 0);
+    this._playTone(880, 1100, 0.12, 'triangle', 0.12, 0.08);
+  }
+
+  // 11. TERMINAL BYPASS TICK
+  playChannelTick() {
+    const now = performance.now();
+    if (this.lastChannelTick && (now - this.lastChannelTick < 170)) return;
+    this.lastChannelTick = now;
+    this._playTone(600 + Math.random() * 80, 520, 0.04, 'sine', 0.08, 0);
+  }
+
+  // 12. TERMINAL BYPASS CANCELLED
+  playChannelCancel() {
+    this._playTone(550, 220, 0.09, 'sine', 0.12, 0);
+  }
+
+  // 13. EXIT GATES POWERED / UNLOCKED
+  playGateUnlocked() {
+    this._playBodyThump({ delay: 0, startFreq: 140, endFreq: 30, duration: 0.45, gainPeak: 0.55 });
+    this._playNoiseBurst({ delay: 0, duration: 0.35, filterType: 'lowpass', freq: 450, gainPeak: 0.35 });
+    this._playTone(440, 440, 0.30, 'triangle', 0.25, 0.15);
+    this._playTone(554.37, 554.37, 0.30, 'triangle', 0.25, 0.35);
+    this._playTone(659.25, 659.25, 0.50, 'triangle', 0.30, 0.55);
+  }
+
+  // 14. MATCH START GONG
+  playMatchStart() {
+    this._playBodyThump({ delay: 0, startFreq: 95, endFreq: 32, duration: 1.2, gainPeak: 0.45 });
+    this._playTone(130.81, 130.81, 1.4, 'sine', 0.30, 0.05);
+    this._playTone(196.00, 196.00, 1.2, 'triangle', 0.20, 0.15);
+  }
+
+  // 15. DISTANT ELIMINATION NOTIFICATION
+  playScream() {
+    this._playNoiseBurst({ delay: 0, duration: 0.45, filterType: 'bandpass', freq: 1100, endFreq: 400, Q: 3.0, gainPeak: 0.28 });
+    this._playTone(320, 140, 0.55, 'sawtooth', 0.15, 0.02);
+  }
+
+  // 16. DEFEAT / LOSS
+  playGameOver() {
+    this._playTone(146.83, 110.0, 1.2, 'sawtooth', 0.25, 0);
+    this._playTone(98.0, 65.4, 1.5, 'sine', 0.35, 0.2);
   }
 }
 
