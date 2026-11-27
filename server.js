@@ -21,11 +21,13 @@ const server = http.createServer(app);
 
 // 2. Use 'app' SECOND (must be below const app = express())
 app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.static(__dirname));
 
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
   pingInterval: 10000,
-  pingTimeout: 5000
+  pingTimeout: 5000,
+  perMessageDeflate: false
 });
 
 const REQUIRED_PLAYERS = 3;
@@ -70,6 +72,7 @@ const ALL_TASK_LOCATIONS = [
 ];
 const CHANNEL_DURATION_MS = 1200;
 const ATTACK_COOLDOWN_MS = 1200;
+const MATCH_DURATION_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 function fisherYatesShuffle(arr) {
   const a = arr.slice();
@@ -87,10 +90,34 @@ function startMatch(roomCode) {
   const playerIds = Object.keys(room.players);
   if (playerIds.length < 1) return; // Allow 1 player for solo test, 2+ for multiplayer
 
+  // Clear any existing match timer
+  if (room.matchTimerTimeout) {
+    clearTimeout(room.matchTimerTimeout);
+    room.matchTimerTimeout = null;
+  }
+
   room.gameState = 'in_progress';
   room.survivorTasks = {};
   room.activeChannels = {};
   room.lastFootprintTime = {};
+  room.matchStartTime = Date.now();
+  room.matchEndTime = room.matchStartTime + MATCH_DURATION_MS;
+
+  // Authoritative 10-minute server timer: when time runs out, Hunter wins
+  room.matchTimerTimeout = setTimeout(() => {
+    try {
+      if (rooms[roomCode] && rooms[roomCode].gameState === 'in_progress') {
+        room.gameState = 'ended';
+        io.to(roomCode).emit('gameOver', {
+          winner: 'hunter',
+          message: 'TIME EXPIRED\nThe facility locked down permanently!\n(The Hunter Prevails)'
+        });
+        logToFile(`Match ended in [${roomCode}] due to TIME EXPIRED (10 minutes elapsed).`);
+      }
+    } catch (err) {
+      console.error('[Error in matchTimerTimeout]', err);
+    }
+  }, MATCH_DURATION_MS);
 
   // Guarantee that the 2 exit gates change every single round
   room.lastExitPairIndex = (typeof room.lastExitPairIndex === 'number') ? room.lastExitPairIndex : -1;
@@ -138,6 +165,7 @@ function startMatch(roomCode) {
     const hunterIndex = Math.floor(Math.random() * eligible.length);
     room.hunterSocketId = eligible[hunterIndex];
     room.lastHunterSocketId = room.hunterSocketId;
+    room.hunterName = room.players[room.hunterSocketId]?.name || null;
 
     let survivorCount = 0;
 
@@ -172,7 +200,10 @@ function startMatch(roomCode) {
     players: room.players,
     survivorTasks: room.survivorTasks,
     exitGates: room.activeExitGates,
-    exitGate: room.activeExitGates[0]
+    exitGate: room.activeExitGates[0],
+    matchDuration: MATCH_DURATION_MS,
+    matchEndTime: room.matchEndTime,
+    timeRemaining: Math.max(0, Math.ceil((room.matchEndTime - Date.now()) / 1000))
   });
   const exitNames = room.activeExitGates.map(g => g.name).join(' & ');
   console.log(`[!] Match started in [${roomCode}] with ${playerIds.length} player(s). Hunter: ${room.hunterSocketId || 'None (Solo Test)'}. Exits: ${exitNames}`);
@@ -190,6 +221,10 @@ function checkMatchEndCondition(roomCode) {
     const allDone = survivors.every(s => !s.alive || s.escaped);
 
     if (allDone) {
+      if (room.matchTimerTimeout) {
+        clearTimeout(room.matchTimerTimeout);
+        room.matchTimerTimeout = null;
+      }
       room.gameState = 'ended';
       const escapedCount = survivors.filter(s => s.escaped).length;
 
@@ -219,14 +254,19 @@ io.on('connection', (socket) => {
     currentRoom = (roomCode || 'WOODS-1').toUpperCase().trim();
     socket.join(currentRoom);
 
+    const cleanName = (name || 'Lost_Seeker').trim();
+    const cleanLower = cleanName.toLowerCase();
+
     if (!rooms[currentRoom]) {
       rooms[currentRoom] = {
         gameState: 'waiting',
         hostId: socket.id,
+        hostName: cleanName,
         players: {},
         survivorTasks: {},
         hunterSocketId: null,
         lastHunterSocketId: null,
+        hunterName: null,
         activeExitGates: [],
         activeChannels: {},
         lastFootprintTime: {}
@@ -241,6 +281,7 @@ io.on('connection', (socket) => {
       if (!anyActiveInGame || room.gameState === 'ended' || room.gameState === 'returning_to_lobby') {
         room.gameState = 'waiting';
         room.hunterSocketId = null;
+        room.hunterName = null;
         room.survivorTasks = {};
         room.activeChannels = {};
         if (room.lobbyReturnTimeout) {
@@ -250,15 +291,46 @@ io.on('connection', (socket) => {
       }
     }
 
+    // De-duplicate: Purge truly stale/disconnected socket for this player name in this room,
+    // or if another live active tab connects with the exact same name (e.g. multi-tab local testing),
+    // append a suffix so both tabs can play in the lobby together!
+    let finalName = cleanName;
+    if (room.players) {
+      for (const [existingId, existingP] of Object.entries(room.players)) {
+        if (existingId !== socket.id && (existingP.name || '').trim().toLowerCase() === cleanLower) {
+          const existingSock = io.sockets.sockets.get(existingId);
+          if (existingSock && existingSock.connected) {
+            let counter = 2;
+            while (Object.values(room.players).some(p => (p.name || '').trim().toLowerCase() === `${cleanLower} (${counter})`)) {
+              counter++;
+            }
+            finalName = `${cleanName} (${counter})`;
+          } else {
+            console.log(`[Deduplicate] Removing stale socket ${existingId} for player "${cleanName}" in [${currentRoom}]`);
+            delete room.players[existingId];
+            if (room.survivorTasks) delete room.survivorTasks[existingId];
+            if (room.activeChannels) delete room.activeChannels[existingId];
+          }
+        }
+      }
+    }
+
     if (!asLobby && room.gameState === 'in_progress') {
       // Reconnecting or joining midgame
+      const isHunter = (room.hunterName && room.hunterName.toLowerCase() === cleanLower) ||
+                       (room.hunterSocketId === socket.id);
+      if (isHunter) {
+        room.hunterSocketId = socket.id;
+      }
+      const playerRole = isHunter ? 'hunter' : 'survivor';
+
       room.players[socket.id] = {
         id: socket.id,
-        name: name || 'Lost_Seeker',
+        name: finalName,
         x: 1000,
         y: 750,
         angle: 0,
-        role: 'survivor',
+        role: playerRole,
         alive: true,
         escaped: false,
         ready: true,
@@ -266,20 +338,23 @@ io.on('connection', (socket) => {
         lastAttackTime: 0
       };
 
-      console.log(`[Midgame Join] ${name} (${socket.id}) connected to in-progress [${currentRoom}]`);
+      console.log(`[Midgame Join] ${finalName} (${socket.id}) connected to in-progress [${currentRoom}] as ${playerRole}`);
 
       socket.emit('matchStarted', {
         players: room.players,
         survivorTasks: room.survivorTasks,
         exitGates: room.activeExitGates,
-        exitGate: room.activeExitGates[0]
+        exitGate: room.activeExitGates[0],
+        matchDuration: MATCH_DURATION_MS,
+        matchEndTime: room.matchEndTime,
+        timeRemaining: Math.max(0, Math.ceil((room.matchEndTime - Date.now()) / 1000))
       });
 
       socket.to(currentRoom).emit('playerJoinedMidgame', room.players[socket.id]);
     } else {
       room.players[socket.id] = {
         id: socket.id,
-        name: name || 'Lost_Seeker',
+        name: finalName,
         x: 1000,
         y: 750,
         angle: 0,
@@ -291,12 +366,18 @@ io.on('connection', (socket) => {
         lastAttackTime: 0
       };
 
-      // Ensure valid hostId
-      if (!room.hostId || !room.players[room.hostId]) {
+      // Host election logic:
+      // 1. If this player is the recorded hostName, assign hostId
+      if (room.hostName && cleanLower === room.hostName.toLowerCase()) {
         room.hostId = socket.id;
       }
+      // 2. If hostId is null or points to a non-existent socket, elect this socket
+      if (!room.hostId || !room.players[room.hostId]) {
+        room.hostId = socket.id;
+        room.hostName = cleanName;
+      }
 
-      console.log(`[+] ${name} (${socket.id}) joined [${currentRoom}] (State: ${room.gameState})`);
+      console.log(`[+] ${cleanName} (${socket.id}) joined [${currentRoom}] (State: ${room.gameState}, Host: ${room.hostName})`);
 
       // If room is launching from lobby and all expected players have arrived:
       if (room.gameState === 'launching') {
@@ -324,6 +405,12 @@ io.on('connection', (socket) => {
     if (!currentRoom || !rooms[currentRoom]) return;
     const room = rooms[currentRoom];
     if (socket.id !== room.hostId) return;
+
+    // Preserve hostName across page navigation
+    const hostPlayer = room.players ? room.players[room.hostId] : null;
+    if (hostPlayer && hostPlayer.name) {
+      room.hostName = hostPlayer.name;
+    }
 
     room.expectedCount = Object.keys(room.players).length;
     room.gameState = 'launching';
@@ -377,7 +464,12 @@ io.on('connection', (socket) => {
         if (typeof movementData.x === 'number') p.x = movementData.x;
         if (typeof movementData.y === 'number') p.y = movementData.y;
         if (typeof movementData.angle === 'number') p.angle = movementData.angle;
-        socket.to(currentRoom).emit('playerMoved', p);
+        socket.to(currentRoom).emit('playerMoved', {
+          id: p.id,
+          x: Math.round(p.x * 10) / 10,
+          y: Math.round(p.y * 10) / 10,
+          angle: Math.round(p.angle)
+        });
 
         if (p.role === 'survivor' && movementData.isSprinting && room.hunterSocketId) {
           room.lastFootprintTime = room.lastFootprintTime || {};
@@ -577,34 +669,35 @@ io.on('connection', (socket) => {
   socket.on('returnRoomToLobby', () => {
     if (!currentRoom || !rooms[currentRoom]) return;
     const room = rooms[currentRoom];
+    if (room.matchTimerTimeout) {
+      clearTimeout(room.matchTimerTimeout);
+      room.matchTimerTimeout = null;
+    }
+
+    // Preserve the host's identity so they remain host when arriving at the lobby
+    const hostPlayer = room.players ? room.players[room.hostId] : null;
+    if (hostPlayer && hostPlayer.name) {
+      room.hostName = hostPlayer.name;
+    }
+
     room.gameState = 'returning_to_lobby';
     room.hunterSocketId = null;
+    room.hunterName = null;
     room.survivorTasks = {};
     room.activeChannels = {};
-    Object.values(room.players).forEach(p => {
-      p.role = 'waiting';
-      p.ready = true;
-      p.alive = true;
-      p.escaped = false;
-    });
+    room.players = {}; // Reset player sockets for fresh lobby connections!
+    room.hostId = null;
 
     if (room.lobbyReturnTimeout) clearTimeout(room.lobbyReturnTimeout);
     room.lobbyReturnTimeout = setTimeout(() => {
-      if (rooms[currentRoom] && rooms[currentRoom].gameState === 'returning_to_lobby') {
+      if (rooms[currentRoom] && (rooms[currentRoom].gameState === 'returning_to_lobby' || rooms[currentRoom].gameState === 'waiting')) {
         rooms[currentRoom].gameState = 'waiting';
-        const count = Object.keys(rooms[currentRoom].players).length;
+        const count = rooms[currentRoom].players ? Object.keys(rooms[currentRoom].players).length : 0;
         if (count === 0) {
           delete rooms[currentRoom];
         }
       }
-    }, 6000);
-
-    io.to(currentRoom).emit('lobbyRosterUpdate', {
-      roomCode: currentRoom,
-      hostId: room.hostId,
-      players: Object.values(room.players),
-      gameState: 'waiting'
-    });
+    }, 15000);
 
     // Make EVERY player currently in the match return to the lobby!
     io.to(currentRoom).emit('returnToLobby', { roomCode: currentRoom });
@@ -617,6 +710,9 @@ io.on('connection', (socket) => {
 
       // While launching from lobby or returning to lobby, sockets disconnect as pages transition - do not delete room
       if (room.gameState === 'launching' || room.gameState === 'returning_to_lobby') {
+        if (room.players && room.players[sock.id]) {
+          delete room.players[sock.id];
+        }
         return;
       }
 
@@ -644,6 +740,7 @@ io.on('connection', (socket) => {
       const remaining = room.players ? Object.keys(room.players).length : 0;
       if (remaining === 0) {
         if (room.launchTimeout) clearTimeout(room.launchTimeout);
+        if (room.matchTimerTimeout) clearTimeout(room.matchTimerTimeout);
         delete rooms[currentRoom];
       } else {
         io.to(currentRoom).emit('lobbyRosterUpdate', {
@@ -655,6 +752,10 @@ io.on('connection', (socket) => {
 
         if (room.gameState === 'in_progress') {
           if (wasHunter) {
+            if (room.matchTimerTimeout) {
+              clearTimeout(room.matchTimerTimeout);
+              room.matchTimerTimeout = null;
+            }
             room.gameState = 'ended';
             io.to(currentRoom).emit('gameOver', {
               winner: 'survivor',
@@ -663,6 +764,10 @@ io.on('connection', (socket) => {
           } else {
             const remainingSurvivors = Object.values(room.players).filter(p => p && p.role === 'survivor');
             if (remainingSurvivors.length === 0) {
+              if (room.matchTimerTimeout) {
+                clearTimeout(room.matchTimerTimeout);
+                room.matchTimerTimeout = null;
+              }
               room.gameState = 'ended';
               io.to(currentRoom).emit('gameOver', {
                 winner: 'hunter',

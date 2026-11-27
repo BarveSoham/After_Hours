@@ -11,9 +11,15 @@ class MainScene extends Phaser.Scene {
   }
 
   create() {
-    this.socket = io(); // Automatically connects to the host's tunnel
+    this.socket = io({ transports: ['websocket', 'polling'] }); // Automatically connects to the host's tunnel
     this.socket.on('connect', () => {
       console.log(`[Socket.io] Connected to server! Socket ID: ${this.socket.id}`);
+      if (this.currentRoomCode) {
+        this.socket.emit('joinRoom', {
+          name: this.playerName,
+          roomCode: this.currentRoomCode
+        });
+      }
     });
     this.socket.on('connect_error', (err) => {
       console.error('[Socket.io] Connection error:', err.message);
@@ -26,6 +32,9 @@ class MainScene extends Phaser.Scene {
     this.hasEscaped = false;
     this.taskCompleted = false;
     this.isMatchActive = false;
+    this.matchEndTime = null;
+    this.matchDuration = 10 * 60 * 1000;
+    this.matchTimeRemaining = 600;
 
     this.spectateIndex = 0;
     this.spectateTarget = null;
@@ -39,9 +48,9 @@ class MainScene extends Phaser.Scene {
     this.attackCooldownTimer = 0;
     this.attackCooldownDuration = 1200;
 
-    // Network Sync Throttle (~40Hz, 25ms)
+    // Network Sync Throttle (~30Hz, 33ms) - optimal for real-time smoothness without packet congestion
     this.networkTickTimer = 0;
-    this.networkTickInterval = 25;
+    this.networkTickInterval = 33;
 
     // 1. World Bounds
     this.physics.world.setBounds(0, 0, 2000, 1500);
@@ -163,40 +172,63 @@ class MainScene extends Phaser.Scene {
   returnToLobby() {
     if (this._isReturningToLobby) return;
     this._isReturningToLobby = true;
-    this.isMatchActive = false;
-    this.isPaused = false;
-    this.ui.hidePause();
-    this.setInGameCursor(true);
-    this.player.body.setVelocity(0);
-    this.ui.hideGameOver();
-    this.ui.heartbeatVignette.clear();
+
+    try {
+      this.isMatchActive = false;
+      this.isPaused = false;
+      if (this.ui) {
+        if (typeof this.ui.hidePause === 'function') this.ui.hidePause();
+        if (typeof this.ui.hideGameOver === 'function') this.ui.hideGameOver();
+        if (this.ui.heartbeatVignette && typeof this.ui.heartbeatVignette.clear === 'function') {
+          this.ui.heartbeatVignette.clear();
+        }
+      }
+      this.setInGameCursor(true);
+      if (this.player && this.player.body && typeof this.player.body.setVelocity === 'function') {
+        this.player.body.setVelocity(0);
+      }
+    } catch (e) {
+      console.warn('Error during returnToLobby cleanup:', e);
+    }
 
     const roomCode = this.currentRoomCode || 'AFH-409';
     const playerName = this.playerName || localStorage.getItem('afterHoursPlayerName') || 'Wanderer';
 
     if (this.socket && this.socket.connected) {
-      this.socket.emit('leaveRoom');
-      try { this.socket.disconnect(); } catch (_) {}
+      try {
+        this.socket.emit('leaveRoom');
+      } catch (_) {}
     }
 
-    window.location.href = `/mainscreen/index.html?room=${encodeURIComponent(roomCode)}&screen=LOBBY&name=${encodeURIComponent(playerName)}`;
+    window.location.href = `/real%20ui/index.html?room=${encodeURIComponent(roomCode)}&screen=LOBBY&name=${encodeURIComponent(playerName)}`;
   }
 
   exitToMainMenu() {
     this.isMatchActive = false;
     this.isPaused = false;
-    this.ui.hidePause();
-    this.setInGameCursor(true);
-    this.player.body.setVelocity(0);
-    this.ui.hideGameOver();
-    this.ui.heartbeatVignette.clear();
-
-    if (this.socket && this.socket.connected) {
-      this.socket.emit('leaveRoom');
-      try { this.socket.disconnect(); } catch (_) {}
+    try {
+      if (this.ui) {
+        if (typeof this.ui.hidePause === 'function') this.ui.hidePause();
+        if (typeof this.ui.hideGameOver === 'function') this.ui.hideGameOver();
+        if (this.ui.heartbeatVignette && typeof this.ui.heartbeatVignette.clear === 'function') {
+          this.ui.heartbeatVignette.clear();
+        }
+      }
+      this.setInGameCursor(true);
+      if (this.player && this.player.body && typeof this.player.body.setVelocity === 'function') {
+        this.player.body.setVelocity(0);
+      }
+    } catch (e) {
+      console.warn('Error during exitToMainMenu cleanup:', e);
     }
 
-    window.location.href = '/mainscreen/index.html';
+    if (this.socket && this.socket.connected) {
+      try {
+        this.socket.emit('leaveRoom');
+      } catch (_) {}
+    }
+
+    window.location.href = '/real%20ui/index.html';
   }
 
   setupHTMLMenuBindings() {
@@ -345,6 +377,11 @@ class MainScene extends Phaser.Scene {
 
   update(time, delta) {
     const dt = delta / 1000;
+
+    // Live update match countdown timer when active
+    if (this.isMatchActive && this.matchEndTime) {
+      this.matchTimeRemaining = Math.max(0, Math.ceil((this.matchEndTime - Date.now()) / 1000));
+    }
 
     // Toggle pause with ESC key during active match
     if (this.isMatchActive && !this.ui.isGameOverVisible && Phaser.Input.Keyboard.JustDown(this.escKey)) {

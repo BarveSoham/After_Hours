@@ -21,11 +21,10 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        mainscreen: resolve(__dirname, 'mainscreen/index.html'),
+        realui: resolve(__dirname, 'real ui/index.html'),
         game: resolve(__dirname, 'game.html'),
-        howToPlay: resolve(__dirname, 'mainscreen/how-to-play.html'),
-        settings: resolve(__dirname, 'mainscreen/settings.html'),
-        quit: resolve(__dirname, 'mainscreen/quit.html')
+        howToPlay: resolve(__dirname, 'real ui/how-to-play.html'),
+        settings: resolve(__dirname, 'real ui/settings.html')
       }
     }
   }

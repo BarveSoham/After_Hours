@@ -52,24 +52,41 @@ export class PlayerController {
 
     const isMoving = (vx !== 0 || vy !== 0);
     let currentSpeed = this.walkSpeed;
-    this.isSprinting = false;
 
     // Survivor sprint mechanics
     if (this.scene.role === 'survivor' && !isChanneling) {
-      const wantsToSprint = this.shiftKey.isDown && isMoving && !this.isExhausted && this.stamina > 5;
-      if (wantsToSprint) {
+      // If already sprinting, allow continuing smoothly until stamina reaches 0
+      // If initiating a new sprint, require not being exhausted and at least 10 stamina
+      const canContinueSprint = this.isSprinting && this.shiftKey.isDown && isMoving && !this.isExhausted && this.stamina > 0;
+      const canStartSprint = !this.isExhausted && this.shiftKey.isDown && isMoving && this.stamina >= 10;
+
+      if (canContinueSprint || canStartSprint) {
         this.isSprinting = true;
         currentSpeed = this.sprintSpeed;
         this.stamina = Math.max(0, this.stamina - 28 * dt);
         this.anxiety = Math.min(this.maxAnxiety, this.anxiety + 3 * dt);
-        if (this.stamina === 0) this.isExhausted = true;
+
+        if (this.stamina <= 0) {
+          this.stamina = 0;
+          this.isExhausted = true;
+          this.isSprinting = false;
+          currentSpeed = this.walkSpeed;
+        }
       } else {
-        this.stamina = Math.min(this.maxStamina, this.stamina + (isMoving ? 10 : 20) * dt);
-        if (this.isExhausted && this.stamina >= 25) this.isExhausted = false;
+        this.isSprinting = false;
+        // Stamina regenerates when walking or idle (faster when idle)
+        this.stamina = Math.min(this.maxStamina, this.stamina + (isMoving ? 12 : 22) * dt);
+        // Survivor must recover to at least 30% stamina before exhaustion clears
+        if (this.isExhausted && this.stamina >= 30) {
+          this.isExhausted = false;
+        }
       }
       this.anxiety = Math.min(this.maxAnxiety, this.anxiety + 0.8 * dt);
     } else if (this.scene.role === 'hunter') {
+      this.isSprinting = false;
       currentSpeed = 230;
+    } else {
+      this.isSprinting = false;
     }
 
     // Normalized diagonal velocity vector

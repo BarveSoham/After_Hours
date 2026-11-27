@@ -54,8 +54,18 @@ export class UIManager {
       fontFamily: 'monospace'
     }).setDepth(21).setVisible(false).setScrollFactor(0);
 
-    this.spectatorBanner = this.scene.add.text(cx, 32, '', {
-      fontSize: '18px',
+    // 10-Minute Match Countdown Timer (Top-Center HUD)
+    this.timerText = this.scene.add.text(cx, 16, 'TIME: 10:00', {
+      fontSize: '15px',
+      color: '#4fffe3',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      backgroundColor: '#050c14cc',
+      padding: { x: 12, y: 5 }
+    }).setOrigin(0.5, 0).setDepth(25).setVisible(false).setScrollFactor(0);
+
+    this.spectatorBanner = this.scene.add.text(cx, 56, '', {
+      fontSize: '16px',
       fontFamily: 'monospace',
       fontStyle: 'bold',
       align: 'center',
@@ -63,7 +73,7 @@ export class UIManager {
       padding: { x: 14, y: 6 }
     }).setOrigin(0.5, 0.5).setDepth(30).setVisible(false).setScrollFactor(0);
 
-    this.spectatorTip = this.scene.add.text(cx, 62, '[SPACE] to switch view', {
+    this.spectatorTip = this.scene.add.text(cx, 84, '[SPACE] to switch view', {
       fontSize: '11px',
       fontFamily: 'monospace',
       color: '#bbbbbb',
@@ -229,7 +239,7 @@ export class UIManager {
     this.btnPauseLobbyBg.on('pointerdown', () => {
       if (!this.isPauseVisible) return;
       sound.playClick();
-      this.scene.returnToLobby();
+      this.scene.requestReturnAllToLobby();
     });
 
     // EXIT TO MAIN MENU BUTTON
@@ -288,6 +298,7 @@ export class UIManager {
   showGameOver(message, color) {
     this.hidePause();
     this.isGameOverVisible = true;
+    this.timerText.setVisible(false);
 
     this.endBannerText.setText(message).setColor(color);
     this.endOverlay.setVisible(true);
@@ -304,6 +315,7 @@ export class UIManager {
   hideGameOver() {
     this.hidePause();
     this.isGameOverVisible = false;
+    this.timerText.setVisible(false);
     this.endOverlay.setVisible(false);
     this.endBannerText.setVisible(false);
     this.btnBg.setVisible(false);
@@ -345,8 +357,40 @@ export class UIManager {
       .setVisible(true);
   }
 
+  updateMatchTimer() {
+    if (this.scene.isMatchActive && this.scene.matchTimeRemaining !== undefined && !this.isGameOverVisible) {
+      this.timerText.setVisible(true);
+      const remaining = Math.max(0, this.scene.matchTimeRemaining);
+      const m = Math.floor(remaining / 60);
+      const s = remaining % 60;
+      const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      this.timerText.setText(`TIME: ${timeStr}`);
+
+      if (remaining <= 60) {
+        // Critical: Red warning
+        this.timerText.setColor('#ff3333');
+        if (remaining <= 30 && Math.floor(Date.now() / 400) % 2 === 0) {
+          this.timerText.setBackgroundColor('#4a0808ee');
+        } else {
+          this.timerText.setBackgroundColor('#200505dd');
+        }
+      } else if (remaining <= 180) {
+        // Warning: Amber warning under 3 mins
+        this.timerText.setColor('#f39c12');
+        this.timerText.setBackgroundColor('#050c14cc');
+      } else {
+        // Normal: Cyan
+        this.timerText.setColor('#4fffe3');
+        this.timerText.setBackgroundColor('#050c14cc');
+      }
+    } else {
+      this.timerText.setVisible(false);
+    }
+  }
+
   update(dt, playerController) {
     this.hud.clear();
+    this.updateMatchTimer();
 
     if (this.scene.role === 'hunter' && this.scene.isMatchActive) {
       this.taskListHeader.setVisible(false);
@@ -445,7 +489,11 @@ export class UIManager {
   updateHeartbeat(dt) {
     this.heartbeatVignette.clear();
     // Only active survivors receive danger proximity heartbeat
-    if (!this.scene.isAlive || this.scene.hasEscaped || !this.scene.isMatchActive || this.scene.role === 'hunter') return;
+    if (!this.scene.isAlive || this.scene.hasEscaped || !this.scene.isMatchActive || this.scene.role === 'hunter') {
+      this.smoothedDanger = 0;
+      this.vignetteAlpha = 0;
+      return;
+    }
 
     let hunterDistance = 9999;
     this.scene.otherPlayers.getChildren().forEach((other) => {
@@ -455,16 +503,18 @@ export class UIManager {
       }
     });
 
-    const DANGER_ZONE = 420;
-    const targetDanger = hunterDistance < DANGER_ZONE ? 1 - (hunterDistance / DANGER_ZONE) : 0;
-    this.smoothedDanger = Phaser.Math.Linear(this.smoothedDanger, targetDanger, Math.min(1, 14 * dt));
+    const DANGER_ZONE = 460;
+    const targetDanger = hunterDistance < DANGER_ZONE ? Math.max(0, 1 - (hunterDistance / DANGER_ZONE)) : 0;
+    // Smooth danger transition for natural cinematic fade-in / fade-out
+    this.smoothedDanger = Phaser.Math.Linear(this.smoothedDanger || 0, targetDanger, Math.min(1, 10 * dt));
 
-    if (this.smoothedDanger > 0.02) {
+    if (this.smoothedDanger > 0.01) {
+      // Pulse frequency accelerates as hunter gets closer (4 Hz to 14 Hz)
       const currentFrequency = 4 + this.smoothedDanger * 10;
       this.pulsePhase += currentFrequency * dt;
 
       const rawWave = (Math.sin(this.pulsePhase) + 1) * 0.5;
-      const beatIntensity = Math.pow(rawWave, 1.4);
+      const beatIntensity = Math.pow(rawWave, 1.3);
 
       // Play audio heartbeat thump in sync with danger level (72 to 210 BPM)
       const now = performance.now();
@@ -474,24 +524,50 @@ export class UIManager {
         sound.playHeartbeat(this.smoothedDanger);
       }
 
-      const baseAlpha = this.smoothedDanger * 0.25;
-      const peakAlpha = this.smoothedDanger * 0.65;
-      const finalAlpha = Math.min(0.95, baseAlpha + beatIntensity * peakAlpha);
+      // Smooth organic fade-in curve: increases exponentially with proximity
+      const fadeCurve = Math.pow(this.smoothedDanger, 1.2);
+      const targetAlpha = fadeCurve * (0.28 + 0.62 * beatIntensity);
+      this.vignetteAlpha = Phaser.Math.Linear(this.vignetteAlpha || 0, targetAlpha, Math.min(1, 12 * dt));
 
       const w = this.scene.scale.width;
       const h = this.scene.scale.height;
+      const edgeDepth = Math.round(50 + fadeCurve * 90); // 50px to 140px depth fade
 
-      // Vivid crimson pulsing border vignette anchored within screen bounds
-      const thickness = Math.round(20 + this.smoothedDanger * 32);
-      this.heartbeatVignette.lineStyle(thickness, 0xdd1111, finalAlpha);
-      this.heartbeatVignette.strokeRect(thickness / 2, thickness / 2, w - thickness, h - thickness);
+      const outerColor = 0x990008; // Deep blood crimson
+      const innerColor = 0x330000;
+      const maxAlpha = Math.min(0.92, this.vignetteAlpha);
 
-      // Inner intense crimson glow ring when danger is high
-      if (this.smoothedDanger > 0.35) {
-        const innerAlpha = Math.min(0.7, (this.smoothedDanger - 0.35) * 0.55 * beatIntensity);
-        const innerThick = Math.round(thickness * 1.4);
-        this.heartbeatVignette.lineStyle(innerThick, 0x880000, innerAlpha);
-        this.heartbeatVignette.strokeRect(innerThick / 2, innerThick / 2, w - innerThick, h - innerThick);
+      // 1. Top Perimeter Gradient (Fade downward)
+      this.heartbeatVignette.fillGradientStyle(outerColor, outerColor, innerColor, innerColor, maxAlpha, maxAlpha, 0, 0);
+      this.heartbeatVignette.fillRect(0, 0, w, edgeDepth);
+
+      // 2. Bottom Perimeter Gradient (Fade upward)
+      this.heartbeatVignette.fillGradientStyle(innerColor, innerColor, outerColor, outerColor, 0, 0, maxAlpha, maxAlpha);
+      this.heartbeatVignette.fillRect(0, h - edgeDepth, w, edgeDepth);
+
+      // 3. Left Perimeter Gradient (Fade rightward)
+      this.heartbeatVignette.fillGradientStyle(outerColor, innerColor, outerColor, innerColor, maxAlpha, 0, maxAlpha, 0);
+      this.heartbeatVignette.fillRect(0, 0, edgeDepth, h);
+
+      // 4. Right Perimeter Gradient (Fade leftward)
+      this.heartbeatVignette.fillGradientStyle(innerColor, outerColor, innerColor, outerColor, 0, maxAlpha, 0, maxAlpha);
+      this.heartbeatVignette.fillRect(w - edgeDepth, 0, edgeDepth, h);
+
+      // 5. Corner Deep Shadows (Cinematic radial vignette feel when danger is high)
+      if (this.smoothedDanger > 0.3) {
+        const cornerAlpha = Math.min(0.65, (this.smoothedDanger - 0.3) * 0.8 * beatIntensity);
+        const cornerSize = Math.round(edgeDepth * 1.5);
+        this.heartbeatVignette.fillGradientStyle(0x770004, 0x000000, 0x000000, 0x000000, cornerAlpha, 0, 0, 0);
+        this.heartbeatVignette.fillRect(0, 0, cornerSize, cornerSize);
+
+        this.heartbeatVignette.fillGradientStyle(0x000000, 0x770004, 0x000000, 0x000000, 0, cornerAlpha, 0, 0);
+        this.heartbeatVignette.fillRect(w - cornerSize, 0, cornerSize, cornerSize);
+
+        this.heartbeatVignette.fillGradientStyle(0x000000, 0x000000, 0x770004, 0x000000, 0, 0, cornerAlpha, 0);
+        this.heartbeatVignette.fillRect(0, h - cornerSize, cornerSize, cornerSize);
+
+        this.heartbeatVignette.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x770004, 0, 0, 0, cornerAlpha);
+        this.heartbeatVignette.fillRect(w - cornerSize, h - cornerSize, cornerSize, cornerSize);
       }
     }
   }

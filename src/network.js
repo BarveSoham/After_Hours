@@ -43,6 +43,17 @@ export class NetworkManager {
       sc.canAttack = true;
       sc.attackCooldownTimer = 0;
 
+      // Synchronize 10-minute match timer with server
+      if (data && data.matchEndTime) {
+        sc.matchEndTime = data.matchEndTime;
+        sc.matchDuration = data.matchDuration || (10 * 60 * 1000);
+        sc.matchTimeRemaining = Math.max(0, Math.ceil((data.matchEndTime - Date.now()) / 1000));
+      } else {
+        sc.matchDuration = 10 * 60 * 1000;
+        sc.matchEndTime = Date.now() + sc.matchDuration;
+        sc.matchTimeRemaining = 600;
+      }
+
       // Clean up previous exit gates and their tweens
       if (sc.activeDoors) {
         sc.activeDoors.forEach(door => {
@@ -354,6 +365,8 @@ export class NetworkManager {
 
       sc.isMatchActive = false;
       sc.isPaused = false;
+      sc.matchEndTime = null;
+      sc.matchTimeRemaining = 0;
       sc.setInGameCursor(true);
       sc.player.body.setVelocity(0);
       sc.ui.heartbeatVignette.clear();
